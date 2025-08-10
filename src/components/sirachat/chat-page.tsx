@@ -398,7 +398,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
         <MessageList 
             messages={messages} 
             currentUser={currentUser} 
-            onUserSelect={onUserSelect} 
+            onUserSelect={handleUserSelect} 
             chatPartner={chatPartner}
             onEditMessage={(message) => setEditingMessage(message)}
             onDeleteMessage={handleDeleteMessage}
@@ -423,3 +423,5 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
     </>
   );
 }
+
+    
