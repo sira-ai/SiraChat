@@ -10,10 +10,10 @@ import { getAuth } from "firebase/auth";
 const firebaseConfig = {
   "projectId": "sirachat",
   "appId": "1:600267541023:web:ca1101b27fc02585efe32a",
-  "storageBucket": "sirachat.firebasestorage.app",
+  "storageBucket": "sirachat.appspot.com",
   "apiKey": "AIzaSyC3_IgR7xCt32tMAkyRh2CxY4WbgFYQdSg",
   "authDomain": "sirachat.firebaseapp.com",
-  "measurementId": "",
+  "measurementId": "G-MEASUREMENT_ID",
   "messagingSenderId": "600267541023"
 };
 
