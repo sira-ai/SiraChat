@@ -4,7 +4,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { BellOff, Volume2 } from "lucide-react";
+import { BellOff } from "lucide-react";
 import Image from "next/image";
 
 type ChatListItemProps = {
@@ -15,7 +15,6 @@ type ChatListItemProps = {
   unreadCount?: number;
   isMuted?: boolean;
   isTyping?: boolean;
-  isArchived?: boolean;
   dataAiHint?: string;
 };
 
@@ -27,7 +26,6 @@ export default function ChatListItem({
   unreadCount = 0,
   isMuted = false,
   isTyping = false,
-  isArchived = false,
   dataAiHint
 }: ChatListItemProps) {
   const hasUnread = unreadCount > 0;
@@ -35,11 +33,7 @@ export default function ChatListItem({
   return (
     <div className="flex items-center gap-3 p-3 hover:bg-card/50 transition-colors cursor-pointer">
       <Avatar className="h-14 w-14 flex-shrink-0">
-         {avatar.startsWith('http') ? (
-            <AvatarImage src={avatar} alt={name} data-ai-hint={dataAiHint}/>
-         ) : (
-            <Image src={avatar} alt={name} width={56} height={56} className={cn("p-2", !isArchived && "bg-muted rounded-full")} />
-         )}
+         <AvatarImage src={avatar} alt={name} data-ai-hint={dataAiHint}/>
         <AvatarFallback className="text-xl bg-primary text-primary-foreground">
           {name.charAt(0).toUpperCase()}
         </AvatarFallback>

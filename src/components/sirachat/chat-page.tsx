@@ -4,12 +4,12 @@
 import { useState, useEffect } from "react";
 import type { Message, UserProfile, TypingStatus } from "@/types";
 import { db, auth } from "@/lib/firebase"; // Import auth
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, setDoc } from "firebase/firestore";
-import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, setDoc, where, limit } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MoreVertical } from "lucide-react";
+import { ArrowLeft, MoreVertical, Globe } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,12 +21,21 @@ import UserProfileDialog from "./user-profile-dialog";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
-export default function ChatPage() {
+// We can pass props to determine which chat we are in.
+// For now, isGlobal will differentiate between the global chat and a private one.
+type ChatPageProps = {
+  isGlobal?: boolean;
+  chatId?: string; // For private chats
+};
+
+export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [chatPartner, setChatPartner] = useState<UserProfile | null>(null);
+
 
    useEffect(() => {
     // Listen for auth state changes to get the current user
@@ -52,7 +61,16 @@ export default function ChatPage() {
       }
     });
 
-    const messagesQuery = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+    return () => unsubscribeAuth();
+  }, []);
+
+
+  useEffect(() => {
+    if (!currentUser) return; // Don't run queries until we know who the user is
+
+    // Determine the correct collection path for messages
+    const messagesCollectionPath = isGlobal ? "messages" : `chats/${chatId}/messages`;
+    const messagesQuery = query(collection(db, messagesCollectionPath), orderBy("timestamp", "asc"));
     const messagesUnsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
       const msgs: Message[] = [];
       querySnapshot.forEach((doc) => {
@@ -61,6 +79,7 @@ export default function ChatPage() {
           id: doc.id,
           text: data.text,
           sender: data.sender,
+          senderId: data.senderId,
           timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
           imageUrl: data.imageUrl,
           stickerUrl: data.stickerUrl,
@@ -71,31 +90,58 @@ export default function ChatPage() {
     });
 
     // Listen for typing status changes
-    const typingQuery = query(collection(db, "typingStatus"));
-    const typingUnsubscribe = onSnapshot(typingQuery, (querySnapshot) => {
-        const currentTypingUsers: string[] = [];
-        querySnapshot.forEach((doc) => {
-            const data = doc.data() as TypingStatus;
-            // Only add if user is typing and is not the current user
-            if (data.isTyping && doc.id !== currentUser?.username) {
-                currentTypingUsers.push(doc.id);
+    // Typing indicator is disabled for global chat for now to reduce complexity
+    let typingUnsubscribe = () => {};
+    if (!isGlobal) {
+        const typingQuery = query(collection(db, "typingStatus"));
+        typingUnsubscribe = onSnapshot(typingQuery, (querySnapshot) => {
+            const currentTypingUsers: string[] = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data() as TypingStatus;
+                // Only add if user is typing and is not the current user
+                if (data.isTyping && doc.id !== currentUser?.username) {
+                    currentTypingUsers.push(doc.id);
+                }
+            });
+            setTypingUsers(currentTypingUsers);
+        });
+    }
+
+    // If this is a private chat, fetch the other user's profile
+    if (!isGlobal && chatId) {
+        // Since we don't have the partner's UID directly, we need to fetch the chat doc
+        const chatRef = doc(db, 'chats', chatId);
+        getDoc(chatRef).then(chatSnap => {
+            if(chatSnap.exists()){
+                const chatData = chatSnap.data();
+                const partnerId = chatData.members.find((id: string) => id !== currentUser.uid);
+                if(partnerId) {
+                    const userRef = doc(db, 'users', partnerId);
+                    getDoc(userRef).then(userSnap => {
+                        if(userSnap.exists()){
+                            setChatPartner(userSnap.data() as UserProfile);
+                        }
+                    });
+                }
             }
         });
-        setTypingUsers(currentTypingUsers);
-    });
+    }
+
 
     return () => {
-      unsubscribeAuth();
       messagesUnsubscribe();
       typingUnsubscribe();
     }
-  }, [currentUser?.username]);
+  }, [currentUser, isGlobal, chatId]);
 
   const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
     if (!currentUser) return;
     if (text.trim() === '' && !imageUrl && !stickerUrl) return;
+
+    const messagesCollectionPath = isGlobal ? "messages" : `chats/${chatId}/messages`;
+
     try {
-      await addDoc(collection(db, "messages"), {
+      await addDoc(collection(db, messagesCollectionPath), {
         text: text,
         sender: currentUser.username, // Send username
         senderId: currentUser.uid, // Also send UID
@@ -118,7 +164,7 @@ export default function ChatPage() {
 
   const getTypingIndicatorText = () => {
     if (typingUsers.length === 0) {
-      return `${currentChat.members} anggota`;
+      return `Online`; // Default status for private chat
     }
     if (typingUsers.length === 1) {
       return `${typingUsers[0]} sedang mengetik...`;
@@ -129,9 +175,9 @@ export default function ChatPage() {
   }
 
   const currentChat = {
-    name: "YAPPING ||",
-    members: 10,
-    avatar: 'https://placehold.co/100x100.png'
+    name: isGlobal ? "Ruang Obrolan Global" : (chatPartner?.username || "Memuat..."),
+    members: isGlobal ? "Semua Pengguna" : (chatPartner ? "Online" : ""),
+    avatar: isGlobal ? undefined : (chatPartner?.avatarUrl || 'https://placehold.co/100x100.png')
   }
 
   return (
@@ -145,7 +191,7 @@ export default function ChatPage() {
               </Link>
             </Button>
             <Avatar className="h-10 w-10">
-              <AvatarImage src={currentChat.avatar} alt={currentChat.name} />
+              {isGlobal ? <Globe /> : <AvatarImage src={currentChat.avatar} alt={currentChat.name} />}
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {currentChat.name.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -153,7 +199,7 @@ export default function ChatPage() {
             <div className="min-w-0">
               <h1 className="text-lg font-bold font-headline text-foreground leading-tight truncate">{currentChat.name}</h1>
               <p className="text-sm text-primary truncate">
-                {typingUsers.length > 0 ? getTypingIndicatorText() : `${currentChat.members} anggota`}
+                {isGlobal ? currentChat.members : getTypingIndicatorText()}
               </p>
             </div>
         </div>
@@ -166,8 +212,8 @@ export default function ChatPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>Info Grup</DropdownMenuItem>
-                <DropdownMenuItem>Keluar Grup</DropdownMenuItem>
+                <DropdownMenuItem>Info Kontak</DropdownMenuItem>
+                <DropdownMenuItem>Blokir</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
         </div>

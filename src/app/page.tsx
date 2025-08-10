@@ -9,9 +9,10 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import type { UserProfile } from '@/types';
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -21,21 +22,28 @@ export default function Home() {
         // Let's check if we have their profile in Firestore.
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
+        
+        let userProfile: UserProfile;
+
+        if (userSnap.exists()) {
+          userProfile = userSnap.data() as UserProfile;
+        } else {
           // If profile doesn't exist, create it.
-          // We'll use the part of the email before the @ as a default username.
-          const username = firebaseUser.email?.split('@')[0] || 'user';
-          await setDoc(userRef, {
+          const username = firebaseUser.email?.split('@')[0] || `user_${firebaseUser.uid.substring(0, 5)}`;
+          const newUserProfile: UserProfile = {
             uid: firebaseUser.uid,
-            email: firebaseUser.email,
+            email: firebaseUser.email!,
             username: username,
             createdAt: new Date(),
-          });
+            avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
+          };
+          await setDoc(userRef, newUserProfile);
+          userProfile = newUserProfile;
         }
-        setUser(firebaseUser);
+        setCurrentUser(userProfile);
       } else {
         // User is signed out.
-        setUser(null);
+        setCurrentUser(null);
       }
       setIsLoading(false);
     });
@@ -66,8 +74,8 @@ export default function Home() {
     );
   }
 
-  return user ? (
-    <ChatListPage username={user.email || 'User'} onLogout={handleLogout} />
+  return currentUser ? (
+    <ChatListPage currentUser={currentUser} onLogout={handleLogout} />
   ) : (
     <AuthPage />
   );
