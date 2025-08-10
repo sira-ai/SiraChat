@@ -11,13 +11,15 @@ type MessageItemProps = {
   isCurrentUser: boolean;
 };
 
-function formatTimestamp(timestamp: string) {
-    const date = new Date(timestamp);
+function formatTimestamp(timestamp: Message['timestamp']) {
+    if (!timestamp) return '';
+    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp instanceof Date ? timestamp : timestamp.toDate();
+    
     if(isToday(date)) {
         return format(date, 'p', { locale: id });
     }
     if(isYesterday(date)) {
-        return `Kemarin pukul ${format(date, 'p', { locale: id })}`;
+        return `Kemarin ${format(date, 'p', { locale: id })}`;
     }
     return format(date, 'd MMM yyyy, p', { locale: id });
 }

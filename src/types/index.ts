@@ -1,6 +1,10 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export type Message = {
   id: string;
   text: string;
   sender: string;
-  timestamp: string;
+  timestamp: Timestamp | Date | string; // Allow multiple types for flexibility
+  imageUrl?: string;
+  stickerUrl?: string;
 };

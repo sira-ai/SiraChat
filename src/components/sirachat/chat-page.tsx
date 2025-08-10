@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import type { Message } from "@/types";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from "firebase/firestore";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
@@ -12,47 +14,49 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "../ui/skeleton";
 
 type ChatPageProps = {
   username: string;
   onLogout: () => void;
 };
 
-const initialMessages: Message[] = [
-  { id: '1', text: 'Selamat datang di SiraChat! Ini adalah demo obrolan.', sender: 'SiraBot', timestamp: new Date().toISOString() },
-  { id: '2', text: 'Sekarang Anda bisa mengirim emoji. Coba klik ikon senyum di input field!', sender: 'SiraBot', timestamp: new Date().toISOString() },
-];
-
-
 export default function ChatPage({ username, onLogout }: ChatPageProps) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleSendMessage = (text: string) => {
-    if (text.trim() === '') return;
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text,
-      sender: username,
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, newMessage]);
-  };
-  
   useEffect(() => {
-    if (messages.length > 2 && messages[messages.length - 1].sender === username) {
-      const timeoutId = setTimeout(() => {
-        const replyMessage: Message = {
-          id: Date.now().toString(),
-          text: "Ini adalah balasan otomatis! Fitur chat real-time akan segera hadir.",
-          sender: "SiraBot",
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, replyMessage]);
-      }, 1500);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [messages, username]);
+    const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const msgs: Message[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        msgs.push({
+          id: doc.id,
+          text: data.text,
+          sender: data.sender,
+          timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+        });
+      });
+      setMessages(msgs);
+      setIsLoading(false);
+    });
 
+    return () => unsubscribe();
+  }, []);
+
+  const handleSendMessage = async (text: string) => {
+    if (text.trim() === '') return;
+    try {
+      await addDoc(collection(db, "messages"), {
+        text: text,
+        sender: username,
+        timestamp: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Error sending message: ", error);
+    }
+  };
 
   return (
     <div className="flex h-screen w-screen flex-col bg-background">
@@ -82,7 +86,15 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
         </div>
       </header>
       <div className="flex-1 overflow-y-auto">
-        <MessageList messages={messages} currentUser={username} />
+        {isLoading ? (
+          <div className="p-4 space-y-4">
+            <Skeleton className="h-16 w-3/4" />
+            <Skeleton className="h-16 w-3/4 ml-auto" />
+            <Skeleton className="h-16 w-2/4" />
+          </div>
+        ) : (
+          <MessageList messages={messages} currentUser={username} />
+        )}
       </div>
       <footer className="border-t p-2 sm:p-4 bg-card/50">
         <MessageInput onSendMessage={handleSendMessage} />
