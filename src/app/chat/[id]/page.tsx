@@ -7,7 +7,7 @@ import React from 'react';
 // This is a dynamic route for private chats
 // The [id] will be the chat room ID
 export default function PrivateChat({ params }: { params: { id: string } }) {
-  // Use React.use to handle the promise-like nature of params in newer Next.js versions
-  const resolvedParams = React.use(Promise.resolve(params));
-  return <ChatPage chatId={resolvedParams.id} />;
+  // Accessing params.id directly is the stable way in this client component.
+  // The previous use of React.use was incorrect and caused a promise-related error.
+  return <ChatPage chatId={params.id} />;
 }
