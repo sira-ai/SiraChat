@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Message, UserProfile } from "@/types";
@@ -7,7 +8,14 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Image from "next/image";
 import { Button } from "../ui/button";
-import { Check, CheckCheck, FileText, Download } from "lucide-react";
+import { Check, CheckCheck, FileText, Download, MoreHorizontal, Copy, Edit, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 type MessageItemProps = {
   message: Message;
@@ -15,6 +23,8 @@ type MessageItemProps = {
   onUserSelect: (senderId: string) => void;
   partnerAvatar?: string | null;
   senderProfile?: Pick<UserProfile, 'avatarUrl'>;
+  onEditMessage: (message: Message) => void;
+  onDeleteMessage: (messageId: string) => void;
 };
 
 function formatTimestamp(timestamp: Message['timestamp']) {
@@ -25,11 +35,18 @@ function formatTimestamp(timestamp: Message['timestamp']) {
 }
 
 
-export default function MessageItem({ message, isCurrentUser, onUserSelect, partnerAvatar, senderProfile }: MessageItemProps) {
-  const { text, sender, senderId, timestamp, attachmentUrl, attachmentType, fileName } = message;
+export default function MessageItem({ message, isCurrentUser, onUserSelect, partnerAvatar, senderProfile, onEditMessage, onDeleteMessage }: MessageItemProps) {
+  const { text, sender, senderId, timestamp, attachmentUrl, attachmentType, fileName, isEdited, isDeleted } = message;
+  const { toast } = useToast();
 
-  // For global chat, use senderProfile. For private, use partnerAvatar for the other user.
   const avatarUrl = isCurrentUser ? undefined : (senderProfile?.avatarUrl || partnerAvatar || `https://placehold.co/100x100.png`);
+
+  const handleCopy = () => {
+    if(text) {
+        navigator.clipboard.writeText(text);
+        toast({ title: "Pesan disalin ke clipboard" });
+    }
+  }
 
   const renderAttachment = () => {
     if (!attachmentUrl) return null;
@@ -69,10 +86,46 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
     return null;
   };
 
+  const MessageContent = (
+    <div className={cn("max-w-sm md:max-w-md flex flex-col", 
+          isCurrentUser ? "" : "items-start"
+      )}>
+        <div className={cn(
+          "relative rounded-xl p-1.5",
+          isCurrentUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card shadow-sm border rounded-bl-none",
+           isDeleted ? "bg-muted text-muted-foreground italic" : ""
+        )}>
+           {!isCurrentUser && senderId && !isDeleted && (
+            <p className="text-sm font-bold text-accent px-1.5 pt-1 cursor-pointer" onClick={() => onUserSelect(senderId)}>{sender}</p>
+          )}
+
+          {!isDeleted && renderAttachment()}
+          
+          {(text || (!attachmentUrl && !isDeleted)) && (
+            <div className="flex items-end gap-2 px-1.5 pb-1">
+                {text && <p className="text-base whitespace-pre-wrap break-words leading-relaxed pt-1">{text}</p>}
+                <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                {isEdited && !isDeleted && "Diedit"} {formatTimestamp(timestamp)}
+                {isCurrentUser && !isDeleted && <CheckCheck className="w-4 h-4" />}
+                </div>
+            </div>
+          )}
+
+           {(!text && attachmentUrl && !isDeleted) && (
+             <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1 float-right clear-both px-1.5 pb-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                {formatTimestamp(timestamp)}
+                {isCurrentUser && <CheckCheck className="w-4 h-4" />}
+             </div>
+           )}
+
+        </div>
+      </div>
+  );
+
   return (
     <div
       className={cn(
-        "flex items-end gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500",
+        "flex items-end gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500 group",
         isCurrentUser ? "justify-end" : "justify-start"
       )}
     >
@@ -86,38 +139,34 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
             </Avatar>
         </Button>
       )}
-      <div className={cn("max-w-sm md:max-w-md flex flex-col", 
-          isCurrentUser ? "" : "items-start"
-      )}>
-        <div className={cn(
-          "relative rounded-xl p-1.5",
-          isCurrentUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card shadow-sm border rounded-bl-none",
-        )}>
-           {!isCurrentUser && senderId && (
-            <p className="text-sm font-bold text-accent px-1.5 pt-1 cursor-pointer" onClick={() => onUserSelect(senderId)}>{sender}</p>
+      
+       <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <div className="cursor-pointer">
+            {MessageContent}
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align={isCurrentUser ? "end" : "start"} className="w-56">
+          <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted}>
+            <Copy className="mr-2 h-4 w-4" />
+            <span>Salin Pesan</span>
+          </DropdownMenuItem>
+          {isCurrentUser && !isDeleted && (
+            <>
+              <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl}>
+                <Edit className="mr-2 h-4 w-4" />
+                <span>Edit Pesan</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteMessage(message.id)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Hapus Pesan</span>
+              </DropdownMenuItem>
+            </>
           )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-          {renderAttachment()}
-          
-          {(text || !attachmentUrl) && (
-            <div className="flex items-end gap-2 px-1.5 pb-1">
-                {text && <p className="text-base whitespace-pre-wrap break-words leading-relaxed pt-1">{text}</p>}
-                <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                {formatTimestamp(timestamp)}
-                {isCurrentUser && <CheckCheck className="w-4 h-4" />}
-                </div>
-            </div>
-          )}
-
-           {(!text && attachmentUrl) && (
-             <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1 float-right clear-both px-1.5 pb-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                {formatTimestamp(timestamp)}
-                {isCurrentUser && <CheckCheck className="w-4 h-4" />}
-             </div>
-           )}
-
-        </div>
-      </div>
     </div>
   );
 }
+

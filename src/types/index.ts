@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export type Message = {
@@ -9,6 +10,8 @@ export type Message = {
   attachmentUrl?: string;
   attachmentType?: 'image' | 'file';
   fileName?: string;
+  isEdited?: boolean;
+  isDeleted?: boolean;
 };
 
 export type UserProfile = {

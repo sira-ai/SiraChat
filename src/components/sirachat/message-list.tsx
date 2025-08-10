@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -12,9 +13,11 @@ type MessageListProps = {
   currentUser: UserProfile | null;
   chatPartner: UserProfile | null;
   onUserSelect: (senderId: string) => void;
+  onEditMessage: (message: Message) => void;
+  onDeleteMessage: (messageId: string) => void;
 };
 
-export default function MessageList({ messages, currentUser, chatPartner, onUserSelect }: MessageListProps) {
+export default function MessageList({ messages, currentUser, chatPartner, onUserSelect, onEditMessage, onDeleteMessage }: MessageListProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
 
@@ -56,6 +59,8 @@ export default function MessageList({ messages, currentUser, chatPartner, onUser
                 isCurrentUser={message.senderId === currentUser?.uid}
                 onUserSelect={onUserSelect}
                 partnerAvatar={chatPartner?.avatarUrl}
+                onEditMessage={onEditMessage}
+                onDeleteMessage={onDeleteMessage}
                 />
             ))}
             <div ref={endOfMessagesRef} />

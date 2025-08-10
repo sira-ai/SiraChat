@@ -4,17 +4,29 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Message, UserProfile, TypingStatus, Chat } from "@/types";
 import { db } from "@/lib/firebase"; 
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, writeBatch, deleteDoc } from "firebase/firestore";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Globe, User, PanelLeft, ArrowLeft } from "lucide-react";
+import { MoreVertical, Globe, User, PanelLeft, ArrowLeft, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Skeleton } from "../ui/skeleton";
 import UserProfileDialog from "./user-profile-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -22,6 +34,7 @@ import { useSidebar } from "../ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 type ChatPageProps = {
   isGlobal?: boolean;
@@ -36,9 +49,11 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
   const [isMyProfile, setIsMyProfile] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [chatPartner, setChatPartner] = useState<UserProfile | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
   const router = useRouter();
+  const { toast } = useToast();
 
 
   useEffect(() => {
@@ -63,6 +78,8 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
           attachmentUrl: data.attachmentUrl,
           attachmentType: data.attachmentType,
           fileName: data.fileName,
+          isEdited: data.isEdited,
+          isDeleted: data.isDeleted,
         };
       });
       setMessages(msgs);
@@ -112,6 +129,10 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
                        }
                     }
                 }
+            } else {
+                 console.log("Chat does not exist, redirecting.");
+                 toast({ title: "Obrolan tidak ditemukan", description: "Obrolan ini mungkin telah dihapus.", variant: "destructive"});
+                 router.push('/chat');
             }
              setIsLoading(false);
         });
@@ -125,11 +146,16 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
       typingUnsubscribe();
       unsubscribeChat();
     }
-  }, [currentUser, isGlobal, chatId]);
+  }, [currentUser, isGlobal, chatId, router, toast]);
 
   const handleSendMessage = async (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => {
     if (!currentUser || (!isGlobal && !chatId)) return;
     if (message.trim() === '' && !attachmentUrl) return;
+
+    if (editingMessage) {
+        await handleEditMessage(editingMessage.id, message);
+        return;
+    }
 
     const messagesCollectionPath = isGlobal ? "messages" : `chats/${chatId}/messages`;
     
@@ -167,6 +193,69 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
       console.error("Error sending message: ", error);
     }
   };
+
+  const handleEditMessage = async (messageId: string, newText: string) => {
+    if (!chatId || isGlobal) return;
+    const messageRef = doc(db, `chats/${chatId}/messages`, messageId);
+    try {
+        await updateDoc(messageRef, {
+            text: newText,
+            isEdited: true,
+            timestamp: serverTimestamp() // Optionally update timestamp
+        });
+        setEditingMessage(null);
+        toast({ title: "Pesan berhasil diedit" });
+    } catch (error) {
+        console.error("Error editing message:", error);
+        toast({ title: "Gagal mengedit pesan", variant: "destructive" });
+    }
+  }
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!chatId || isGlobal) return;
+    const messageRef = doc(db, `chats/${chatId}/messages`, messageId);
+    try {
+        await updateDoc(messageRef, {
+            text: "Pesan ini telah dihapus.",
+            attachmentUrl: null,
+            attachmentType: null,
+            fileName: null,
+            isDeleted: true
+        });
+        toast({ title: "Pesan berhasil dihapus" });
+    } catch (error) {
+        console.error("Error deleting message:", error);
+        toast({ title: "Gagal menghapus pesan", variant: "destructive" });
+    }
+  }
+
+  const handleDeleteChat = async () => {
+    if (!chatId || isGlobal || !currentUser) return;
+
+    try {
+        // Delete all messages in the chat subcollection
+        const messagesRef = collection(db, `chats/${chatId}/messages`);
+        const messagesSnap = await getDoc(messagesRef);
+        
+        const batch = writeBatch(db);
+        messagesSnap.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+
+        // Delete the chat document itself
+        const chatRef = doc(db, 'chats', chatId);
+        batch.delete(chatRef);
+
+        await batch.commit();
+
+        toast({ title: "Obrolan berhasil dihapus" });
+        router.push('/chat');
+
+    } catch (error) {
+        console.error("Error deleting chat:", error);
+        toast({ title: "Gagal menghapus obrolan", description: "Terjadi kesalahan yang tidak terduga.", variant: "destructive" });
+    }
+  }
   
   const handleUserSelect = useCallback(async (senderId: string) => {
       if (!currentUser) return;
@@ -266,27 +355,64 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
             </div>
         </div>
         <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-6 w-6" />
-                  <span className="sr-only">Buka menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleUserSelect(chatPartner?.uid!)} disabled={isGlobal}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Info Kontak</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AlertDialog>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreVertical className="h-6 w-6" />
+                      <span className="sr-only">Buka menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleUserSelect(chatPartner?.uid!)} disabled={isGlobal}>
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Info Kontak</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                     <AlertDialogTrigger asChild>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={isGlobal}>
+                            <Trash2 className="mr-2 h-4 w-4"/>
+                            <span>Hapus Obrolan</span>
+                        </DropdownMenuItem>
+                     </AlertDialogTrigger>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus seluruh riwayat percakapan ini secara permanen.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteChat} className="bg-destructive hover:bg-destructive/90">
+                        Ya, Hapus
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
       </header>
       <div className="flex-1 overflow-y-auto" style={{backgroundImage: "url('/chat-bg.png')", backgroundSize: '300px', backgroundRepeat: 'repeat'}}>
-        <MessageList messages={messages} currentUser={currentUser} onUserSelect={handleUserSelect} chatPartner={chatPartner}/>
+        <MessageList 
+            messages={messages} 
+            currentUser={currentUser} 
+            onUserSelect={handleUserSelect} 
+            chatPartner={chatPartner}
+            onEditMessage={(message) => setEditingMessage(message)}
+            onDeleteMessage={handleDeleteMessage}
+        />
       </div>
       <footer className="bg-transparent border-t-0 backdrop-blur-sm">
-        <MessageInput onSendMessage={handleSendMessage} currentUser={currentUser} chatId={chatId} isGlobal={isGlobal} />
+        <MessageInput 
+            onSendMessage={handleSendMessage} 
+            currentUser={currentUser} 
+            chatId={chatId} 
+            isGlobal={isGlobal}
+            editingMessage={editingMessage}
+            onCancelEdit={() => setEditingMessage(null)}
+        />
       </footer>
     </div>
     <UserProfileDialog 
@@ -297,5 +423,3 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
     </>
   );
 }
-
-    

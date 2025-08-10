@@ -13,14 +13,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, X } from "lucide-react";
+import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, X, Edit } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import type { UserProfile } from "@/types";
+import type { UserProfile, Message } from "@/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import Picker from '@emoji-mart/react';
 import { Progress } from "../ui/progress";
@@ -34,6 +34,8 @@ type MessageInputProps = {
   currentUser: UserProfile | null;
   chatId?: string;
   isGlobal?: boolean;
+  editingMessage: Message | null;
+  onCancelEdit: () => void;
 };
 
 type UploadProgress = {
@@ -44,7 +46,7 @@ type UploadProgress = {
 // Debounce timer for typing indicator
 let typingTimer: NodeJS.Timeout;
 
-export default function MessageInput({ onSendMessage, currentUser, chatId, isGlobal = false }: MessageInputProps) {
+export default function MessageInput({ onSendMessage, currentUser, chatId, isGlobal = false, editingMessage, onCancelEdit }: MessageInputProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,6 +62,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
   const [upload, setUpload] = useState<UploadProgress | null>(null);
   const [emojiData, setEmojiData] = useState(null);
   const hasText = !!form.watch("message");
+  const isEditing = !!editingMessage;
 
   useEffect(() => {
     async function loadEmojiData() {
@@ -73,6 +76,18 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
     }
     loadEmojiData();
   }, []);
+
+  useEffect(() => {
+    if (editingMessage) {
+      form.setValue("message", editingMessage.text);
+      textareaRef.current?.focus();
+      setTimeout(adjustTextareaHeight, 0);
+    } else {
+      form.reset({ message: "" });
+      setTimeout(adjustTextareaHeight, 0);
+    }
+  }, [editingMessage, form]);
+
 
   // Typing indicator logic
   const updateTypingStatus = async (isTyping: boolean) => {
@@ -95,7 +110,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
 
   const handleOnInput = () => {
     adjustTextareaHeight();
-    if (!currentUser) return;
+    if (!currentUser || isEditing) return;
     
     updateTypingStatus(true);
     clearTimeout(typingTimer);
@@ -117,10 +132,12 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (values.message.trim()) {
       onSendMessage(values.message);
-      form.reset({ message: '' });
-      textareaRef.current?.focus();
-      if (currentUser && chatId) updateTypingStatus(false);
-      clearTimeout(typingTimer);
+      if (!isEditing) {
+        form.reset({ message: '' });
+        textareaRef.current?.focus();
+        if (currentUser && chatId) updateTypingStatus(false);
+        clearTimeout(typingTimer);
+      }
       setTimeout(adjustTextareaHeight, 0);
     }
   }
@@ -184,7 +201,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
-        if (form.getValues("message").trim() && !upload) {
+        if ((hasText || isEditing) && !upload) {
           form.handleSubmit(onSubmit)();
         }
     }
@@ -212,24 +229,40 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
           </div>
         </div>
       )}
+      {isEditing && (
+        <div className="p-2 pt-0">
+            <div className="bg-muted p-2 rounded-lg text-sm flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                    <Edit className="h-5 w-5 text-primary" />
+                    <div>
+                        <p className="font-bold text-primary">Edit Pesan</p>
+                        <p className="text-muted-foreground line-clamp-1">{editingMessage.text}</p>
+                    </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onCancelEdit}>
+                    <X className="h-4 w-4"/>
+                </Button>
+            </div>
+        </div>
+      )}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2 p-2">
           <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
             
             <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
-              <Tooltip>
+               <Tooltip>
                 <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                          <Smile className="h-6 w-6" />
-                          <span className="sr-only">Pilih Emoji</span>
-                      </Button>
-                  </PopoverTrigger>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                            <Smile className="h-6 w-6" />
+                            <span className="sr-only">Pilih Emoji</span>
+                        </Button>
+                    </PopoverTrigger>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Emoji</p>
+                    <p>Emoji</p>
                 </TooltipContent>
-              </Tooltip>
+               </Tooltip>
               <PopoverContent className="w-auto p-0 mb-2 border-0" side="top" align="start">
                   {emojiData ? (
                       <Picker 
@@ -270,19 +303,19 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
 
             <Popover open={isAttachmentPopoverOpen} onOpenChange={setAttachmentPopoverOpen}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" disabled={!!upload}>
-                          {upload ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
-                          <span className="sr-only">Lampirkan File</span>
-                      </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Lampiran</p>
-                </TooltipContent>
-              </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" disabled={!!upload || isEditing}>
+                                {upload ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
+                                <span className="sr-only">Lampirkan File</span>
+                            </Button>
+                        </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Lampiran</p>
+                    </TooltipContent>
+                </Tooltip>
               <PopoverContent align="end" side="top" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
                   <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => {fileInputRef.current?.setAttribute('accept', 'image/*'); fileInputRef.current?.click();}} disabled={!!upload}>
                       <ImageIcon className="h-8 w-8 mb-1" />
@@ -297,11 +330,12 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
           </div>
 
           <Button type="submit" size="icon" disabled={!hasText || form.formState.isSubmitting || !!upload} className="h-12 w-12 rounded-full flex-shrink-0">
-            <SendHorizonal className="h-6 w-6" />
-            <span className="sr-only">Kirim Pesan</span>
+            {isEditing ? <Check className="h-6 w-6" /> : <SendHorizonal className="h-6 w-6" />}
+            <span className="sr-only">{isEditing ? "Simpan Perubahan" : "Kirim Pesan"}</span>
           </Button>
         </form>
       </Form>
     </TooltipProvider>
   );
 }
+
