@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -190,141 +191,136 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
   const handleStickerSelect = (stickerUrl: string) => {
       onSendMessage("", undefined, stickerUrl);
       setPickerOpen(false);
-      setAttachmentPopoverOpen(false);
   }
 
   return (
     <TooltipProvider>
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col">
-       <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
-        <div className="flex items-end gap-2 p-2">
-            <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
-                
-                <PopoverTrigger asChild>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                         <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                             <Smile className="h-6 w-6" />
-                             <span className="sr-only">Pilih Emoji atau Stiker</span>
-                         </Button>
-                      </TooltipTrigger>
-                       <TooltipContent side="top" align="center">
-                          <p>Emoji & Stiker</p>
-                      </TooltipContent>
-                    </Tooltip>
-                </PopoverTrigger>
-
-                <FormField
-                  control={form.control}
-                  name="message"
-                  render={({ field }) => (
-                    <FormItem className="flex-1">
-                      <FormControl>
-                        <Textarea
-                          placeholder="Ketik pesan..."
-                          className="resize-none bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[20px] max-h-48 py-2.5"
-                          rows={1}
-                          onKeyDown={handleKeyDown}
-                          {...field}
-                          ref={textareaRef}
-                          onInput={handleOnInput}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-
-                <Popover open={isAttachmentPopoverOpen} onOpenChange={setAttachmentPopoverOpen}>
-                    <PopoverTrigger asChild>
-                       <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                                {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
-                                <span className="sr-only">Lampirkan File</span>
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" align="center">
-                          <p>Lampiran</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
-                         <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                             <ImageIcon className="h-8 w-8 mb-1" />
-                             <span className="text-xs">Gambar</span>
-                         </Button>
-                         <Button variant="outline" className="flex flex-col h-20 w-20" disabled>
-                            <DocumentIcon className="h-8 w-8 mb-1" />
-                            <span className="text-xs">Dokumen</span>
-                         </Button>
-                    </PopoverContent>
-                </Popover>
-
-            </div>
-
-            <Button type="submit" size="icon" disabled={!hasText || form.formState.isSubmitting} className="h-12 w-12 rounded-full flex-shrink-0">
-              <SendHorizonal className="h-6 w-6" />
-              <span className="sr-only">Kirim Pesan</span>
-            </Button>
-        </div>
-        
-        <PopoverContent className="w-[calc(100vw-16px)] sm:w-[400px] h-[350px] p-0 border-none bg-transparent shadow-none">
-             <Tabs defaultValue="emoji" className="h-full w-full bg-card rounded-lg flex flex-col">
-                <div className="flex-1 overflow-y-auto p-4">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2 p-2">
+          <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
+            
+            <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                      <Smile className="h-6 w-6" />
+                      <span className="sr-only">Pilih Emoji atau Stiker</span>
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="center">
+                  <p>Emoji & Stiker</p>
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent className="w-[calc(100vw-16px)] sm:w-[400px] h-[350px] p-0 mb-2 border-none bg-transparent shadow-none">
+                <Tabs defaultValue="emoji" className="h-full w-full bg-card rounded-lg flex flex-col">
+                  <div className="flex-1 overflow-y-auto p-4">
                     <TabsContent value="emoji" className="mt-0">
-                        <div className="grid grid-cols-8 gap-2">
-                            {emojis.map(emoji => (
-                                <Button key={emoji} variant="ghost" size="icon" onClick={() => handleEmojiSelect(emoji)} className="text-2xl">
-                                    {emoji}
-                                </Button>
-                            ))}
-                        </div>
+                      <div className="grid grid-cols-8 gap-2">
+                        {emojis.map(emoji => (
+                          <Button key={emoji} variant="ghost" size="icon" onClick={() => handleEmojiSelect(emoji)} className="text-2xl">
+                            {emoji}
+                          </Button>
+                        ))}
+                      </div>
                     </TabsContent>
                     <TabsContent value="gif" className="mt-0 flex flex-col items-center justify-center h-full text-muted-foreground">
                         <p className="text-lg">Fitur GIF</p>
                         <p>Segera Hadir!</p>
                     </TabsContent>
                     <TabsContent value="sticker" className="mt-0 space-y-4">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input placeholder="Cari stiker..." className="pl-10 bg-background" />
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input placeholder="Cari stiker..." className="pl-10 bg-background" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><History className="h-4 w-4" />Terakhir Digunakan</h3>
+                        <div className="grid grid-cols-5 gap-2">
+                          {stickers.slice(0, 5).map(sticker => (
+                            <Button key={sticker} variant="ghost" className="h-auto p-1 aspect-square bg-background" onClick={() => handleStickerSelect(sticker)}>
+                              <Image src={sticker} alt="Stiker" width={64} height={64} />
+                            </Button>
+                          ))}
                         </div>
-                        <div>
-                           <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><History className="h-4 w-4" />Terakhir Digunakan</h3>
-                            <div className="grid grid-cols-5 gap-2">
-                                {stickers.slice(0, 5).map(sticker => (
-                                    <Button key={sticker} variant="ghost" className="h-auto p-1 aspect-square bg-background" onClick={() => handleStickerSelect(sticker)}>
-                                        <Image src={sticker} alt="Stiker" width={64} height={64} />
-                                    </Button>
-                                ))}
-                            </div>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><ThumbsUp className="h-4 w-4" />Stiker Trending</h3>
+                        <div className="grid grid-cols-5 gap-2">
+                          {stickers.map(sticker => (
+                            <Button key={sticker} variant="ghost" className="h-auto p-1 aspect-square bg-background" onClick={() => handleStickerSelect(sticker)}>
+                              <Image src={sticker} alt="Stiker" width={64} height={64} />
+                            </Button>
+                          ))}
                         </div>
-                        <div>
-                           <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><ThumbsUp className="h-4 w-4" />Stiker Trending</h3>
-                             <div className="grid grid-cols-5 gap-2">
-                                {stickers.map(sticker => (
-                                    <Button key={sticker} variant="ghost" className="h-auto p-1 aspect-square bg-background" onClick={() => handleStickerSelect(sticker)}>
-                                        <Image src={sticker} alt="Stiker" width={64} height={64} />
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
+                      </div>
                     </TabsContent>
-                </div>
-                <TabsList className="grid w-full grid-cols-3 rounded-t-none h-12">
+                  </div>
+                  <TabsList className="grid w-full grid-cols-3 rounded-t-none h-12">
                     <TabsTrigger value="emoji" className="h-full text-base">Emoji</TabsTrigger>
                     <TabsTrigger value="gif" className="h-full text-base">GIF</TabsTrigger>
                     <TabsTrigger value="sticker" className="h-full text-base">Stiker</TabsTrigger>
-                </TabsList>
-             </Tabs>
-        </PopoverContent>
-      </Popover>
-      </form>
-    </Form>
+                  </TabsList>
+                </Tabs>
+              </PopoverContent>
+            </Popover>
+
+            <FormField
+              control={form.control}
+              name="message"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormControl>
+                    <Textarea
+                      placeholder="Ketik pesan..."
+                      className="resize-none bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[20px] max-h-48 py-2.5"
+                      rows={1}
+                      onKeyDown={handleKeyDown}
+                      {...field}
+                      ref={textareaRef}
+                      onInput={handleOnInput}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+
+            <Popover open={isAttachmentPopoverOpen} onOpenChange={setAttachmentPopoverOpen}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                      {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
+                      <span className="sr-only">Lampirkan File</span>
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="center">
+                  <p>Lampiran</p>
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent align="end" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
+                <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                  <ImageIcon className="h-8 w-8 mb-1" />
+                  <span className="text-xs">Gambar</span>
+                </Button>
+                <Button variant="outline" className="flex flex-col h-20 w-20" disabled>
+                  <DocumentIcon className="h-8 w-8 mb-1" />
+                  <span className="text-xs">Dokumen</span>
+                </Button>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <Button type="submit" size="icon" disabled={!hasText || form.formState.isSubmitting} className="h-12 w-12 rounded-full flex-shrink-0">
+            <SendHorizonal className="h-6 w-6" />
+            <span className="sr-only">Kirim Pesan</span>
+          </Button>
+        </form>
+      </Form>
     </TooltipProvider>
   );
 }
