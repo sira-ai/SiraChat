@@ -1,12 +1,12 @@
 
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration.
-// Hardcoded to ensure it's always available and prevent configuration errors.
+// This is hardcoded to ensure it's always available and prevent configuration errors.
 const firebaseConfig = {
   "projectId": "sirachat",
   "appId": "1:600267541023:web:ca1101b27fc02585efe32a",
@@ -16,8 +16,8 @@ const firebaseConfig = {
   "messagingSenderId": "600267541023"
 };
 
-// Initialize Firebase
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+// Initialize Firebase for SSR
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const storage = getStorage(app);
 const auth = getAuth(app);
