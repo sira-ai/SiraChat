@@ -71,6 +71,7 @@ export default function AuthPage() {
                     type: "manual",
                     message: "Nama pengguna ini sudah digunakan.",
                 });
+                setIsSubmitting(false);
                 return;
             }
 
@@ -95,12 +96,13 @@ export default function AuthPage() {
 
         } catch (error: any) {
             console.error("Error registering:", error);
-            let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
+            let errorMessage = "Terjadi kesalahan. Pastikan konfigurasi Firebase Anda benar.";
             if (error.code === 'auth/email-already-in-use') {
                 errorMessage = "Alamat email ini sudah terdaftar. Silakan masuk atau gunakan email lain.";
                  loginForm.setError("email", { type: "manual", message: errorMessage });
-            } else if (error.message) {
-                errorMessage = error.message;
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = "Format email tidak valid.";
+                registerForm.setError("email", { type: "manual", message: errorMessage });
             }
             toast({
                 title: "Pendaftaran Gagal",
