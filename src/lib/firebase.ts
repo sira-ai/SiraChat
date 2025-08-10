@@ -12,8 +12,6 @@ const firebaseConfig = {
   "storageBucket": "sirachat.appspot.com",
   "apiKey": "AIzaSyC3_IgR7xCt32tMAkyRh2CxY4WbgFYQdSg",
   "authDomain": "sirachat.firebaseapp.com",
-  "measurementId": "G-MEASUREMENT_ID",
-  "messagingSenderId": "600267541023"
 };
 
 // Initialize Firebase for SSR
