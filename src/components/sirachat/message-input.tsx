@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,13 +13,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { SendHorizonal, Smile, Image as ImageIcon, Loader2, Sticker } from "lucide-react";
+import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, Sticker as StickerIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Image from "next/image";
 
 const formSchema = z.object({
@@ -53,15 +53,18 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [isAttachmentPopoverOpen, setAttachmentPopoverOpen] = useState(false);
   const [isStickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const hasText = !!form.watch("message");
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (values.message.trim()) {
       onSendMessage(values.message);
       form.reset({ message: '' });
       textareaRef.current?.focus();
-      adjustTextareaHeight();
+      // Ensure height is reset after sending
+      setTimeout(adjustTextareaHeight, 0);
     }
   }
 
@@ -79,6 +82,7 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
     }
 
     setIsUploading(true);
+    setAttachmentPopoverOpen(false); // Close popover on selection
     try {
         const storageRef = ref(storage, `chat-images/${Date.now()}_${file.name}`);
         const snapshot = await uploadBytes(storageRef, file);
@@ -103,8 +107,9 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
 
   const adjustTextareaHeight = () => {
     if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+        textareaRef.current.style.height = 'auto'; // Reset height
+        const scrollHeight = textareaRef.current.scrollHeight;
+        textareaRef.current.style.height = `${scrollHeight}px`;
     }
   }
 
@@ -128,22 +133,19 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
   const handleStickerSelect = (stickerUrl: string) => {
       onSendMessage("", undefined, stickerUrl);
       setStickerPickerOpen(false);
+      setAttachmentPopoverOpen(false);
   }
 
   return (
-    <TooltipProvider delayDuration={200}>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-1 sm:gap-2">
-        
-        <Tooltip>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2 p-2">
+        <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
             <Popover open={isEmojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
                 <PopoverTrigger asChild>
-                    <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="flex-shrink-0">
-                        <Smile className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                        <Smile className="h-6 w-6" />
                         <span className="sr-only">Pilih Emoji</span>
                     </Button>
-                    </TooltipTrigger>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto border-none bg-transparent shadow-none p-0 mb-2">
                      <div className="grid grid-cols-4 gap-2 rounded-lg border bg-popover p-2 shadow-lg w-full">
@@ -155,82 +157,76 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
                     </div>
                 </PopoverContent>
             </Popover>
-            <TooltipContent side="top" align="center">
-                <p>Emoji</p>
-            </TooltipContent>
-        </Tooltip>
 
+            <FormField
+              control={form.control}
+              name="message"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormControl>
+                    <Textarea
+                      placeholder="Ketik pesan..."
+                      className="resize-none bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[20px] max-h-48 py-2.5"
+                      rows={1}
+                      onKeyDown={handleKeyDown}
+                      {...field}
+                      ref={textareaRef}
+                      onInput={adjustTextareaHeight}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
 
-        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-        <Tooltip>
-            <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="flex-shrink-0" type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
-                <span className="sr-only">Kirim Gambar</span>
-            </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top" align="center">
-                <p>Kirim Gambar</p>
-            </TooltipContent>
-        </Tooltip>
-        
-        <Tooltip>
-            <Popover open={isStickerPickerOpen} onOpenChange={setStickerPickerOpen}>
+            <Popover open={isAttachmentPopoverOpen} onOpenChange={setAttachmentPopoverOpen}>
                 <PopoverTrigger asChild>
-                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="flex-shrink-0">
-                            <Sticker className="h-5 w-5" />
-                            <span className="sr-only">Pilih Stiker</span>
-                        </Button>
-                    </TooltipTrigger>
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                        {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
+                        <span className="sr-only">Lampirkan File</span>
+                    </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto border-none bg-transparent shadow-none p-0 mb-2">
-                     <div className="grid grid-cols-4 gap-2 rounded-lg border bg-popover p-4 shadow-lg w-[260px]">
-                        {stickers.map(sticker => (
-                            <Button 
-                                key={sticker} 
-                                variant="ghost" 
-                                className="h-auto p-1 aspect-square" 
-                                onClick={() => handleStickerSelect(sticker)}
-                            >
-                                <Image src={sticker} alt="Stiker" width={48} height={48} />
+                <PopoverContent className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
+                     <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                         <ImageIcon className="h-8 w-8 mb-1" />
+                         <span className="text-xs">Gambar</span>
+                     </Button>
+                    <Popover open={isStickerPickerOpen} onOpenChange={setStickerPickerOpen}>
+                        <PopoverTrigger asChild>
+                             <Button variant="outline" className="flex flex-col h-20 w-20">
+                                <StickerIcon className="h-8 w-8 mb-1" />
+                                <span className="text-xs">Stiker</span>
                             </Button>
-                        ))}
-                    </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto border-none bg-transparent shadow-none p-0 mb-2">
+                            <div className="grid grid-cols-4 gap-2 rounded-lg border bg-popover p-4 shadow-lg w-[260px]">
+                                {stickers.map(sticker => (
+                                    <Button 
+                                        key={sticker} 
+                                        variant="ghost" 
+                                        className="h-auto p-1 aspect-square" 
+                                        onClick={() => handleStickerSelect(sticker)}
+                                    >
+                                        <Image src={sticker} alt="Stiker" width={48} height={48} />
+                                    </Button>
+                                ))}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </PopoverContent>
             </Popover>
-             <TooltipContent side="top" align="center">
-                <p>Kirim Stiker</p>
-            </TooltipContent>
-        </Tooltip>
 
+        </div>
 
-        <FormField
-          control={form.control}
-          name="message"
-          render={({ field }) => (
-            <FormItem className="flex-1">
-              <FormControl>
-                <Textarea
-                  placeholder="Ketik pesan..."
-                  className="resize-none min-h-[40px] max-h-48"
-                  rows={1}
-                  onKeyDown={handleKeyDown}
-                  {...field}
-                  ref={textareaRef}
-                  onInput={adjustTextareaHeight}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" size="icon" disabled={!form.getValues("message").trim() || form.formState.isSubmitting} className="h-10 w-10 flex-shrink-0">
-          <SendHorizonal className="h-5 w-5" />
+        <Button type="submit" size="icon" disabled={!hasText || form.formState.isSubmitting} className="h-12 w-12 rounded-full flex-shrink-0">
+          <SendHorizonal className="h-6 w-6" />
           <span className="sr-only">Kirim Pesan</span>
         </Button>
       </form>
     </Form>
-    </TooltipProvider>
   );
 }
+
+    

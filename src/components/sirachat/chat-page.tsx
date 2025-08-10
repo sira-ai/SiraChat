@@ -132,7 +132,7 @@ export default function ChatPage() {
           <MessageList messages={messages} currentUser={currentUser || ''} onUserSelect={handleUserSelect} />
         )}
       </div>
-      <footer className="border-t p-2 sm:p-4 bg-card/50">
+      <footer className="bg-transparent border-t-0 backdrop-blur-sm">
         <MessageInput onSendMessage={handleSendMessage} />
       </footer>
     </div>
@@ -140,3 +140,5 @@ export default function ChatPage() {
     </>
   );
 }
+
+    
