@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Link from "next/link";
+import UserProfileDialog from "./user-profile-dialog";
 import { Separator } from "../ui/separator";
 
 type ChatListContentProps = {
@@ -48,6 +49,7 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
   const [isLoading, setIsLoading] = useState(true);
   const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [isNewChatDialogOpen, setIsNewChatDialogOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const router = useRouter();
 
    useEffect(() => {
@@ -157,48 +159,57 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
 
 
   return (
+    <>
     <div className="flex h-full w-full flex-col bg-card">
         <header className="flex items-center justify-between p-3 border-b">
             <h1 className="text-xl font-bold font-headline text-foreground">Obrolan</h1>
-            <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={handleOpenNewChatDialog}>
-                        <Pencil className="h-5 w-5" />
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                    <DialogTitle>Mulai Obrolan Baru</DialogTitle>
-                    <DialogDescription>
-                        Pilih pengguna di bawah ini untuk memulai percakapan.
-                    </DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[60vh] -mx-6 px-6">
-                        {isUsersLoading ? (
-                            <div className="p-3 space-y-4">
-                                {[...Array(3)].map((_, i) => (
-                                    <div className="flex items-center gap-3" key={i}>
-                                        <Skeleton className="h-12 w-12 rounded-full" />
-                                        <Skeleton className="h-5 w-3/4" />
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                             <div className="space-y-1">
-                                {users.length > 0 ? users.map(user => (
-                                    <div key={user.uid} onClick={() => handleCreateOrOpenChat(user)} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors">
-                                        <Avatar className="h-11 w-11">
-                                            <AvatarImage src={user.avatarUrl} alt={user.username}/>
-                                            <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                        <p className="font-semibold">{user.username}</p>
-                                    </div>
-                                )) : <p className="text-sm text-center text-muted-foreground pt-4">Tidak ada pengguna lain yang ditemukan.</p>}
-                            </div>
-                        )}
-                    </ScrollArea>
-                </DialogContent>
-            </Dialog>
+            <div className="flex items-center gap-1">
+                <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={handleOpenNewChatDialog}>
+                            <Pencil className="h-5 w-5" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                        <DialogTitle>Mulai Obrolan Baru</DialogTitle>
+                        <DialogDescription>
+                            Pilih pengguna di bawah ini untuk memulai percakapan.
+                        </DialogDescription>
+                        </DialogHeader>
+                        <ScrollArea className="max-h-[60vh] -mx-6 px-6">
+                            {isUsersLoading ? (
+                                <div className="p-3 space-y-4">
+                                    {[...Array(3)].map((_, i) => (
+                                        <div className="flex items-center gap-3" key={i}>
+                                            <Skeleton className="h-12 w-12 rounded-full" />
+                                            <Skeleton className="h-5 w-3/4" />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="space-y-1">
+                                    {users.length > 0 ? users.map(user => (
+                                        <div key={user.uid} onClick={() => handleCreateOrOpenChat(user)} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors">
+                                            <Avatar className="h-11 w-11">
+                                                <AvatarImage src={user.avatarUrl} alt={user.username}/>
+                                                <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <p className="font-semibold">{user.username}</p>
+                                        </div>
+                                    )) : <p className="text-sm text-center text-muted-foreground pt-4">Tidak ada pengguna lain yang ditemukan.</p>}
+                                </div>
+                            )}
+                        </ScrollArea>
+                    </DialogContent>
+                </Dialog>
+                <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsProfileDialogOpen(true)}>
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
+                        <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                </Button>
+            </div>
         </header>
 
         <ScrollArea className="flex-1">
@@ -240,5 +251,12 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
             )}
         </ScrollArea>
     </div>
+    <UserProfileDialog
+        user={currentUser}
+        isMyProfile={true}
+        open={isProfileDialogOpen}
+        onOpenChange={setIsProfileDialogOpen}
+    />
+    </>
   );
 }
