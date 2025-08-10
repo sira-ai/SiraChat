@@ -1,4 +1,3 @@
-
 "use client";
 
 import { UserProfile } from "@/types";
@@ -23,7 +22,7 @@ export default function UserProfileDialog({ user, onOpenChange }: UserProfileDia
     return null;
   }
 
-  const joinDate = user.createdAt ? format(user.createdAt, 'd MMMM yyyy', { locale: id }) : 'Tidak diketahui';
+  const joinDate = user.createdAt ? format(new Date(user.createdAt), 'd MMMM yyyy', { locale: id }) : 'Tidak diketahui';
 
   return (
     <Dialog open={!!user} onOpenChange={onOpenChange}>

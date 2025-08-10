@@ -16,7 +16,7 @@ export type UserProfile = {
     email: string;
     avatarUrl?: string;
     status?: string;
-    createdAt?: Date;
+    createdAt?: Date | string;
 }
 
 export type TypingStatus = {

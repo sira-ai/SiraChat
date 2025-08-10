@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -38,17 +37,18 @@ export default function Home() {
       if (userSnap.exists()) {
         userProfile = userSnap.data() as UserProfile;
       } else {
-        userProfile = {
+        const newProfile: UserProfile = {
           uid: uid,
           username: username,
           email: `${username.toLowerCase()}@sirachat.app`,
-          createdAt: new Date(),
+          createdAt: new Date().toISOString(),
           avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
         };
         await setDoc(userRef, {
-            ...userProfile,
+            ...newProfile,
             createdAt: serverTimestamp()
         });
+        userProfile = newProfile;
       }
 
       localStorage.setItem('sira-chat-user', JSON.stringify(userProfile));
@@ -61,6 +61,7 @@ export default function Home() {
          uid: uid,
          username: username,
          email: `${username.toLowerCase()}@sirachat.app`,
+         createdAt: new Date().toISOString(),
          avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
        };
        localStorage.setItem('sira-chat-user', JSON.stringify(localProfile));
