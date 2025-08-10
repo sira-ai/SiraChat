@@ -17,8 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, LogIn, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
   username: z.string().trim().min(3, "Nama pengguna minimal 3 karakter.").max(20, "Nama pengguna maksimal 20 karakter.").regex(/^[a-zA-Z0-9_]+$/, "Nama pengguna hanya boleh berisi huruf, angka, dan garis bawah."),
@@ -30,6 +29,7 @@ type AuthPageProps = {
 
 export default function AuthPage({ onLogin }: AuthPageProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { toast } = useToast();
 
     const loginForm = useForm<z.infer<typeof loginSchema>>({
         resolver: zodResolver(loginSchema),
@@ -39,17 +39,25 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
     async function onLoginSubmit(values: z.infer<typeof loginSchema>) {
         setIsSubmitting(true);
         try {
-            // Optional: check if username is already taken, though the logic in Home page handles creation.
-            // For simplicity, we just call the login handler.
             await onLogin(values.username);
             // The state change in page.tsx will handle the view change.
+            toast({
+              title: "Login Berhasil!",
+              description: `Selamat datang, ${values.username}!`,
+            });
         } catch (error: any) {
              console.error("Error during login process:", error);
              loginForm.setError("username", {
                 type: "manual",
                 message: "Terjadi kesalahan saat masuk.",
             });
+             toast({
+                title: "Gagal Masuk",
+                description: "Terjadi kesalahan yang tidak terduga. Silakan coba lagi.",
+                variant: "destructive",
+            });
         } finally {
+            // This now correctly ensures the loading state is always reset
             setIsSubmitting(false);
         }
     }

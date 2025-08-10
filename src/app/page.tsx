@@ -24,26 +24,40 @@ export default function Home() {
   }, []);
 
   const handleLogin = async (username: string) => {
+    // This function is now much simpler.
+    // It creates the user profile object and stores it in localStorage.
+    // It will also create/update the profile in Firestore.
     setIsLoading(true);
-    const userRef = doc(db, 'users', username); // Use username as ID
+
+    // Use a consistent UID based on the username for simplicity in this no-auth setup
+    // In a real app with auth, you'd use the Firebase Auth UID.
+    const uid = `user_${username}`; 
+    const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
-    
+
     let userProfile: UserProfile;
 
     if (userSnap.exists()) {
       userProfile = userSnap.data() as UserProfile;
     } else {
-      // If profile doesn't exist, create it.
-      const newUid = uuidv4(); // Generate a unique ID for the user
-      const newUserProfile: UserProfile = {
-        uid: newUid, // Use a generated UID
+      // If profile doesn't exist in Firestore, create it.
+      userProfile = {
+        uid: uid,
         username: username,
         email: `${username}@sirachat.app`, // Dummy email
-        createdAt: serverTimestamp() as unknown as Date,
+        createdAt: new Date(), // Use client-side date for now
         avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
       };
-      await setDoc(doc(db, "users", newUid), newUserProfile); // Save user with UID as doc ID
-      userProfile = newUserProfile;
+      // We wrap this in a try-catch in case firestore rules are not yet permissive
+      try {
+        await setDoc(userRef, {
+            ...userProfile,
+            createdAt: serverTimestamp() // Use server timestamp when writing
+        });
+      } catch (error) {
+         console.error("Could not save user to firestore. Might be offline or permission issue.", error);
+         // Continue anyway, the app can function with local data
+      }
     }
 
     localStorage.setItem('sira-chat-user', JSON.stringify(userProfile));
