@@ -14,38 +14,39 @@ type MessageListProps = {
 };
 
 export default function MessageList({ messages, currentUser, chatPartner, onUserSelect }: MessageListProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const endOfMessagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-     if (viewportRef.current) {
-      const { scrollHeight, clientHeight, scrollTop } = viewportRef.current;
-      // If user is near the bottom, auto-scroll
-      if (scrollHeight - scrollTop < clientHeight + 300) { // Increased threshold
-        setTimeout(() => {
-            if (scrollRef.current) {
-                // Use scrollIntoView with block: 'end' to ensure it goes to the very bottom
-                scrollRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+    if (scrollAreaRef.current) {
+        const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (viewport) {
+            const { scrollHeight, clientHeight, scrollTop } = viewport;
+            // If user is near the bottom, auto-scroll
+            if (scrollHeight - scrollTop < clientHeight + 300) { // Increased threshold
+                setTimeout(() => {
+                    if (endOfMessagesRef.current) {
+                        // Use scrollIntoView with block: 'end' to ensure it goes to the very bottom
+                        endOfMessagesRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }
+                }, 100);
             }
-        }, 100);
-      }
+        }
     }
   }, [messages]);
   
   // Scrolls to bottom on initial load
   useEffect(() => {
-    if (viewportRef.current) {
-      setTimeout(() => {
-          if (scrollRef.current) {
-              scrollRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-          }
-      }, 200);
-    }
+    setTimeout(() => {
+        if (endOfMessagesRef.current) {
+            endOfMessagesRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }
+    }, 200);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <ScrollArea className="h-full w-full p-4" viewportRef={viewportRef}>
+    <ScrollArea className="h-full w-full p-4" ref={scrollAreaRef}>
         <div className="flex flex-col gap-4">
             {messages.map((message) => (
                 <MessageItem
@@ -56,7 +57,7 @@ export default function MessageList({ messages, currentUser, chatPartner, onUser
                 partnerAvatar={chatPartner?.avatarUrl}
                 />
             ))}
-            <div ref={scrollRef} />
+            <div ref={endOfMessagesRef} />
         </div>
     </ScrollArea>
   );
