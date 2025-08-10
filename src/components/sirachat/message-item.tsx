@@ -14,16 +14,18 @@ type MessageItemProps = {
   message: Message;
   isCurrentUser: boolean;
   onUserSelect: (senderId: string) => void;
+  partnerAvatar?: string | null;
 };
 
 function formatTimestamp(timestamp: Message['timestamp']) {
     if (!timestamp) return '';
-    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp instanceof Date ? timestamp : timestamp.toDate();
+    const date = new Date(timestamp as string);
+    if (isNaN(date.getTime())) return '';
     return format(date, 'p', { locale: id });
 }
 
 
-export default function MessageItem({ message, isCurrentUser, onUserSelect }: MessageItemProps) {
+export default function MessageItem({ message, isCurrentUser, onUserSelect, partnerAvatar }: MessageItemProps) {
   const { text, sender, senderId, timestamp, imageUrl, stickerUrl } = message;
 
   return (
@@ -36,7 +38,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect }: Me
       {!isCurrentUser && (
         <Button variant="ghost" className="p-0 h-10 w-10 self-start flex-shrink-0 rounded-full" onClick={() => onUserSelect(senderId!)}>
             <Avatar className="h-10 w-10">
-              <AvatarImage src={`https://placehold.co/100x100.png`} alt={sender}/>
+              <AvatarImage src={partnerAvatar || `https://placehold.co/100x100.png`} alt={sender}/>
               <AvatarFallback className="bg-accent text-accent-foreground">
                 {sender.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -62,7 +64,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect }: Me
                 <p className="text-sm font-bold text-accent px-2.5 pt-2">{sender}</p>
               )}
               {imageUrl && (
-                  <div className="relative aspect-square w-64 my-1">
+                  <div className="relative aspect-video w-64 my-1">
                       <Image 
                           src={imageUrl} 
                           alt="Gambar yang dikirim" 
@@ -73,7 +75,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect }: Me
                   </div>
               )}
               <div className="flex items-end gap-2 px-2.5 pb-1.5">
-                  {text && <p className={cn("text-sm whitespace-pre-wrap break-words", !imageUrl && "pt-2")}>{text}</p>}
+                  {text && <p className={cn("text-base whitespace-pre-wrap break-words leading-relaxed", !imageUrl && "pt-2")}>{text}</p>}
                   <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
                   {formatTimestamp(timestamp)}
                   {isCurrentUser && <CheckCheck className="w-4 h-4" />}

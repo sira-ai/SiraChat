@@ -30,7 +30,8 @@ export type TypingStatus = {
 export type Chat = {
     id: string;
     members: string[]; // array of UIDs
-    lastMessage?: string;
-    lastMessageTimestamp?: Timestamp;
+    memberProfiles: { [uid: string]: Pick<UserProfile, 'username' | 'avatarUrl'> };
+    lastMessage?: string | null;
+    lastMessageTimestamp?: Timestamp | null;
     createdAt: Timestamp;
 }

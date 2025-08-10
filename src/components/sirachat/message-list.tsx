@@ -9,10 +9,11 @@ import MessageItem from "./message-item";
 type MessageListProps = {
   messages: Message[];
   currentUser: UserProfile | null;
+  chatPartner: UserProfile | null;
   onUserSelect: (senderId: string) => void;
 };
 
-export default function MessageList({ messages, currentUser, onUserSelect }: MessageListProps) {
+export default function MessageList({ messages, currentUser, chatPartner, onUserSelect }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +53,7 @@ export default function MessageList({ messages, currentUser, onUserSelect }: Mes
                 message={message}
                 isCurrentUser={message.senderId === currentUser?.uid}
                 onUserSelect={onUserSelect}
+                partnerAvatar={chatPartner?.avatarUrl}
                 />
             ))}
             <div ref={scrollRef} />

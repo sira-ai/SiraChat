@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Message, UserProfile, TypingStatus } from "@/types";
+import type { Message, UserProfile, TypingStatus, Chat } from "@/types";
 import { db, auth } from "@/lib/firebase"; // Import auth
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
@@ -51,7 +51,8 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
             const newUserProfile: UserProfile = {
                 uid: firebaseUser.uid,
                 username: username,
-                email: firebaseUser.email!
+                email: firebaseUser.email!,
+                avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
             }
             await setDoc(userRef, newUserProfile);
             setCurrentUser(newUserProfile);
@@ -66,8 +67,8 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
 
 
   useEffect(() => {
-    if (!currentUser || !chatId) {
-        setIsLoading(isGlobal);
+    if (!currentUser || (!isGlobal && !chatId)) {
+        setIsLoading(isGlobal); // only show global loading if it's the global page
         return;
     };
 
@@ -89,65 +90,81 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
         });
       });
       setMessages(msgs);
+      // We set loading to false here, after the first batch of messages is loaded
       setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching messages:", error);
+        setIsLoading(false);
     });
 
     // Listen for typing status changes
     let typingUnsubscribe = () => {};
-    if (!isGlobal) {
+    if (!isGlobal && chatId) {
         const typingRef = doc(db, "typingStatus", chatId);
         typingUnsubscribe = onSnapshot(typingRef, (doc) => {
             const data = doc.data() as TypingStatus | undefined;
             const currentTypingUsernames: string[] = [];
 
-            if (data) {
-                Object.entries(data).forEach(([uid, status]) => {
-                    if (uid !== currentUser.uid && status.isTyping) {
-                        currentTypingUsernames.push(status.username);
-                    }
-                });
+            if (data && chatPartner) {
+                // We only care about the partner's typing status
+                const partnerStatus = data[chatPartner.uid];
+                if (partnerStatus?.isTyping) {
+                   currentTypingUsernames.push(partnerStatus.username);
+                }
             }
             setTypingUsers(currentTypingUsernames);
         });
     }
 
     // If this is a private chat, fetch the other user's profile
+    let unsubscribeChat = () => {};
     if (!isGlobal && chatId) {
         const chatRef = doc(db, 'chats', chatId);
-        const unsubscribeChat = onSnapshot(chatRef, async (chatSnap) => {
+        unsubscribeChat = onSnapshot(chatRef, async (chatSnap) => {
             if(chatSnap.exists()){
-                const chatData = chatSnap.data();
+                const chatData = chatSnap.data() as Chat;
                 const partnerId = chatData.members.find((id: string) => id !== currentUser.uid);
                 if(partnerId) {
-                    const userRef = doc(db, 'users', partnerId);
-                    const userSnap = await getDoc(userRef);
-                    if(userSnap.exists()){
-                        setChatPartner(userSnap.data() as UserProfile);
+                    const partnerProfile = chatData.memberProfiles[partnerId];
+                    if (partnerProfile) {
+                        setChatPartner({
+                            uid: partnerId,
+                            username: partnerProfile.username,
+                            avatarUrl: partnerProfile.avatarUrl,
+                            email: '' // not needed here
+                        });
+                    } else {
+                        // Fallback to fetching from users collection if not in chat doc
+                        const userRef = doc(db, 'users', partnerId);
+                        const userSnap = await getDoc(userRef);
+                        if(userSnap.exists()){
+                            setChatPartner(userSnap.data() as UserProfile);
+                        }
                     }
                 }
             }
-             setIsLoading(false);
+             // We can set loading false here too, once we have chat info
+             if (isLoading) setIsLoading(false);
         });
-        return () => unsubscribeChat();
     }
 
 
     return () => {
       messagesUnsubscribe();
       typingUnsubscribe();
+      unsubscribeChat();
     }
-  }, [currentUser, isGlobal, chatId]);
+  }, [currentUser, isGlobal, chatId, chatPartner, isLoading]);
 
   const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
-    if (!currentUser || !chatId) return;
+    if (!currentUser || (!isGlobal && !chatId)) return;
     if (text.trim() === '' && !imageUrl && !stickerUrl) return;
 
     const messagesCollectionPath = isGlobal ? "messages" : `chats/${chatId}/messages`;
-    const chatRef = doc(db, "chats", chatId);
-
+    
     try {
       await addDoc(collection(db, messagesCollectionPath), {
-        text: text,
+        text: text || "",
         sender: currentUser.username, // Send username
         senderId: currentUser.uid, // Also send UID
         timestamp: serverTimestamp(),
@@ -155,11 +172,14 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
         stickerUrl: stickerUrl || null,
       });
 
-      // Update last message on the chat doc
-       await updateDoc(chatRef, {
-           lastMessage: text || (imageUrl ? "Gambar" : "Stiker"),
-           lastMessageTimestamp: serverTimestamp()
-       });
+      // Update last message on the chat doc for private chats
+      if (!isGlobal && chatId) {
+          const chatRef = doc(db, "chats", chatId);
+          await updateDoc(chatRef, {
+              lastMessage: text ? (text.length > 30 ? text.substring(0, 30) + "..." : text) : (imageUrl ? "Gambar" : "Stiker"),
+              lastMessageTimestamp: serverTimestamp()
+          });
+      }
 
     } catch (error) {
       console.error("Error sending message: ", error);
@@ -176,15 +196,8 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
   }
 
   const getTypingIndicatorText = () => {
-    if (!chatPartner) return "Online";
-    if (typingUsers.length === 0) {
-      return `Online`; // Default status for private chat
-    }
-    if (typingUsers.length === 1) {
-      return `${typingUsers[0]} sedang mengetik...`;
-    }
-    if (typingUsers.length > 1) {
-      return `${typingUsers.slice(0, 2).join(", ")} & lainnya sedang mengetik...`;
+    if (typingUsers.length > 0) {
+        return `${typingUsers[0]} sedang mengetik...`;
     }
     return "Online";
   }
@@ -216,6 +229,9 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
                 <Skeleton className="h-20 w-3/4 ml-auto rounded-lg" />
                 <Skeleton className="h-16 w-2/4 rounded-lg" />
             </div>
+             <footer className="bg-transparent border-t-0 backdrop-blur-sm p-2">
+                 <Skeleton className="h-12 w-full rounded-full" />
+             </footer>
         </div>
     );
   }
@@ -231,14 +247,14 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
                 <ArrowLeft className="h-6 w-6" />
               </Link>
             </Button>
-            <Avatar className="h-10 w-10">
-              {isGlobal ? <Globe /> : <AvatarImage src={currentChatAvatar} alt={currentChatName} />}
+            <Avatar className="h-10 w-10 cursor-pointer" onClick={() => handleUserSelect(chatPartner?.uid!)}>
+              {isGlobal ? <Globe className="h-full w-full p-2"/> : <AvatarImage src={currentChatAvatar} alt={currentChatName} />}
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {currentChatName.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <h1 className="text-lg font-bold font-headline text-foreground leading-tight truncate">{currentChatName}</h1>
+              <h1 className="text-lg font-bold font-headline text-foreground leading-tight truncate cursor-pointer" onClick={() => handleUserSelect(chatPartner?.uid!)}>{currentChatName}</h1>
               <p className="text-sm text-primary truncate">
                 {isGlobal ? "Semua Pengguna" : getTypingIndicatorText()}
               </p>
@@ -260,7 +276,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
         </div>
       </header>
       <div className="flex-1 overflow-y-auto" style={{backgroundImage: "url('/chat-bg.png')", backgroundSize: '300px', backgroundRepeat: 'repeat'}}>
-        <MessageList messages={messages} currentUser={currentUser || null} onUserSelect={handleUserSelect} />
+        <MessageList messages={messages} currentUser={currentUser || null} onUserSelect={handleUserSelect} chatPartner={chatPartner}/>
       </div>
       <footer className="bg-transparent border-t-0 backdrop-blur-sm">
         <MessageInput onSendMessage={handleSendMessage} currentUser={currentUser} chatId={chatId} />
