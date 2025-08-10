@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Message } from "@/types";
+import type { Message, UserProfile } from "@/types";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from 'date-fns';
@@ -15,6 +15,7 @@ type MessageItemProps = {
   isCurrentUser: boolean;
   onUserSelect: (senderId: string) => void;
   partnerAvatar?: string | null;
+  senderProfile?: Pick<UserProfile, 'avatarUrl'>;
 };
 
 function formatTimestamp(timestamp: Message['timestamp']) {
@@ -25,8 +26,11 @@ function formatTimestamp(timestamp: Message['timestamp']) {
 }
 
 
-export default function MessageItem({ message, isCurrentUser, onUserSelect, partnerAvatar }: MessageItemProps) {
+export default function MessageItem({ message, isCurrentUser, onUserSelect, partnerAvatar, senderProfile }: MessageItemProps) {
   const { text, sender, senderId, timestamp, imageUrl, stickerUrl } = message;
+
+  // For global chat, use senderProfile. For private, use partnerAvatar for the other user.
+  const avatarUrl = isCurrentUser ? undefined : (senderProfile?.avatarUrl || partnerAvatar || `https://placehold.co/100x100.png`);
 
   return (
     <div
@@ -35,10 +39,10 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
         isCurrentUser ? "justify-end" : "justify-start"
       )}
     >
-      {!isCurrentUser && (
-        <Button variant="ghost" className="p-0 h-10 w-10 self-start flex-shrink-0 rounded-full" onClick={() => onUserSelect(senderId!)}>
+      {!isCurrentUser && senderId && (
+        <Button variant="ghost" className="p-0 h-10 w-10 self-start flex-shrink-0 rounded-full" onClick={() => onUserSelect(senderId)}>
             <Avatar className="h-10 w-10">
-              <AvatarImage src={partnerAvatar || `https://placehold.co/100x100.png`} alt={sender}/>
+              <AvatarImage src={avatarUrl} alt={sender}/>
               <AvatarFallback className="bg-accent text-accent-foreground">
                 {sender.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -60,8 +64,8 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
              </div>
           ) : (
             <>
-              {!isCurrentUser && (
-                <p className="text-sm font-bold text-accent px-2.5 pt-2 cursor-pointer" onClick={() => onUserSelect(senderId!)}>{sender}</p>
+              {!isCurrentUser && senderId && (
+                <p className="text-sm font-bold text-accent px-2.5 pt-2 cursor-pointer" onClick={() => onUserSelect(senderId)}>{sender}</p>
               )}
               {imageUrl && (
                   <div className="relative aspect-video w-64 my-1">

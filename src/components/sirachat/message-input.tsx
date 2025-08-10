@@ -34,6 +34,7 @@ type MessageInputProps = {
   onSendMessage: (message: string, imageUrl?: string, stickerUrl?: string) => void;
   currentUser: UserProfile | null;
   chatId?: string;
+  isGlobal?: boolean;
 };
 
 const emojis = ['😀', '😂', '😍', '🤔', '😎', '😢', '😡', '👍', '👎', '🎉', '❤️', '🙏', '🚀', '🔥', '💡', '💯'];
@@ -55,7 +56,7 @@ const stickers = [
 // Debounce timer for typing indicator
 let typingTimer: NodeJS.Timeout;
 
-export default function MessageInput({ onSendMessage, currentUser, chatId }: MessageInputProps) {
+export default function MessageInput({ onSendMessage, currentUser, chatId, isGlobal = false }: MessageInputProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -73,7 +74,8 @@ export default function MessageInput({ onSendMessage, currentUser, chatId }: Mes
 
   // Typing indicator logic
   const updateTypingStatus = async (isTyping: boolean) => {
-    if (!currentUser || !chatId) return;
+    // Only update typing status in private chats
+    if (isGlobal || !currentUser || !chatId) return;
     try {
       const typingRef = doc(db, "typingStatus", chatId);
       // We use dot notation to update a specific field in the map
@@ -106,12 +108,12 @@ export default function MessageInput({ onSendMessage, currentUser, chatId }: Mes
     return () => {
       clearTimeout(typingTimer);
       // Clean up typing status on component unmount
-      if (currentUser && chatId) {
+      if (currentUser && chatId && !isGlobal) {
           updateTypingStatus(false);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, chatId]);
+  }, [currentUser, chatId, isGlobal]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {

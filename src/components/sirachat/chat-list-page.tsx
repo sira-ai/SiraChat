@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, Search, Pencil, LogOut, MessageSquarePlus } from "lucide-react";
+import { Menu, Search, Pencil, LogOut, MessageSquarePlus, Globe } from "lucide-react";
 import ChatListItem from "./chat-list-item";
 import { ScrollArea } from "../ui/scroll-area";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
+import Link from "next/link";
+import { Separator } from "../ui/separator";
 
 type ChatListPageProps = {
   currentUser: UserProfile;
@@ -103,17 +105,22 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
     setIsNewChatDialogOpen(true);
     setIsUsersLoading(true);
      // Query all users except the current one
-    const usersQuery = query(
-      collection(db, "users"),
-      where("uid", "!=", currentUser.uid)
-    );
-     const querySnapshot = await getDocs(usersQuery);
+    try {
+      const usersQuery = query(
+        collection(db, "users"),
+        where("uid", "!=", currentUser.uid)
+      );
+      const querySnapshot = await getDocs(usersQuery);
       const usersData: UserProfile[] = [];
       querySnapshot.forEach((doc) => {
         usersData.push(doc.data() as UserProfile);
       });
       setUsers(usersData);
+    } catch(e) {
+      console.error("Failed to fetch users, might be offline or no permissions", e);
+    } finally {
       setIsUsersLoading(false);
+    }
   }
 
   const handleCreateOrOpenChat = async (partner: UserProfile) => {
@@ -124,37 +131,39 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
     
     // Although we can't query for a specific array, we can make the ID predictable
     const predictableChatId = sortedMembers.join('_');
-    const chatRef = doc(db, "chats", predictableChatId);
-
-    // Let's try to get the doc directly. If it exists, navigate. If not, create.
+    
     const chatsRef = collection(db, "chats");
     const q = query(chatsRef, where('members', '==', sortedMembers), limit(1));
-    const querySnapshot = await getDocs(q);
     
-    if (!querySnapshot.empty) {
-      // Chat exists, navigate to it
-      const existingChat = querySnapshot.docs[0];
-      router.push(`/chat/${existingChat.id}`);
-    } else {
-      // Chat doesn't exist, create it with a predictable ID if possible,
-      // or just add a new one. AddDoc is safer for concurrency.
-      const newChatRef = await addDoc(chatsRef, {
-        members: sortedMembers,
-        memberProfiles: {
-          [currentUser.uid]: {
-            username: currentUser.username,
-            avatarUrl: currentUser.avatarUrl,
+    try {
+      const querySnapshot = await getDocs(q);
+    
+      if (!querySnapshot.empty) {
+        // Chat exists, navigate to it
+        const existingChat = querySnapshot.docs[0];
+        router.push(`/chat/${existingChat.id}`);
+      } else {
+        // Chat doesn't exist, create it
+        const newChatRef = await addDoc(chatsRef, {
+          members: sortedMembers,
+          memberProfiles: {
+            [currentUser.uid]: {
+              username: currentUser.username,
+              avatarUrl: currentUser.avatarUrl,
+            },
+            [partner.uid]: {
+              username: partner.username,
+              avatarUrl: partner.avatarUrl,
+            }
           },
-          [partner.uid]: {
-            username: partner.username,
-            avatarUrl: partner.avatarUrl,
-          }
-        },
-        createdAt: serverTimestamp(),
-        lastMessage: null,
-        lastMessageTimestamp: null,
-      });
-      router.push(`/chat/${newChatRef.id}`);
+          createdAt: serverTimestamp(),
+          lastMessage: null,
+          lastMessageTimestamp: null,
+        });
+        router.push(`/chat/${newChatRef.id}`);
+      }
+    } catch(e) {
+      console.error("Failed to create or open chat", e);
     }
   };
 
@@ -193,6 +202,20 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
                 </div>
             ) : (
                 <div className="divide-y divide-border">
+                    <Link href="/chat" className="cursor-pointer">
+                      <div className="flex items-center gap-3 p-3 hover:bg-card/50 transition-colors">
+                        <Avatar className="h-14 w-14 flex-shrink-0 bg-primary/20 text-primary">
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Globe className="h-8 w-8" />
+                          </div>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <h2 className="font-bold truncate text-foreground">Ruang Obrolan Global</h2>
+                          <p className="text-sm truncate text-muted-foreground">Ngobrol dengan semua pengguna SiraChat</p>
+                        </div>
+                      </div>
+                    </Link>
+                    <Separator />
                     {chats.length > 0 ? chats.map((chat) => (
                       <div key={chat.id} onClick={() => router.push(`/chat/${chat.id}`)} className="cursor-pointer">
                         <ChatListItem

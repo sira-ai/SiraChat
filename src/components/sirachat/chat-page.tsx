@@ -179,10 +179,14 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
         setSelectedUser(chatPartner);
         return;
     }
-    const userRef = doc(db, 'users', senderId);
-    const userSnap = await getDoc(userRef);
-    if(userSnap.exists()){
-        setSelectedUser(userSnap.data() as UserProfile);
+    try {
+      const userRef = doc(db, 'users', senderId);
+      const userSnap = await getDoc(userRef);
+      if(userSnap.exists()){
+          setSelectedUser(userSnap.data() as UserProfile);
+      }
+    } catch (e) {
+      console.error("Could not fetch user profile, possibly offline.", e);
     }
   }
 
@@ -247,7 +251,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
             <div className="min-w-0">
               <h1 className="text-lg font-bold font-headline text-foreground leading-tight truncate cursor-pointer" onClick={() => handleUserSelect(chatPartner?.uid!)}>{currentChatName}</h1>
               <p className="text-sm text-primary truncate">
-                {isGlobal ? "Semua Pengguna" : getTypingIndicatorText()}
+                {isGlobal ? "Semua Pengguna Online" : getTypingIndicatorText()}
               </p>
             </div>
         </div>
@@ -270,7 +274,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
         <MessageList messages={messages} currentUser={currentUser || null} onUserSelect={handleUserSelect} chatPartner={chatPartner}/>
       </div>
       <footer className="bg-transparent border-t-0 backdrop-blur-sm">
-        <MessageInput onSendMessage={handleSendMessage} currentUser={currentUser} chatId={chatId} />
+        <MessageInput onSendMessage={handleSendMessage} currentUser={currentUser} chatId={chatId} isGlobal={isGlobal} />
       </footer>
     </div>
     <UserProfileDialog user={selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)} />

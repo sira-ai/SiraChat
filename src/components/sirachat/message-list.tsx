@@ -5,6 +5,8 @@ import { useEffect, useRef } from "react";
 import type { Message, UserProfile } from "@/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MessageItem from "./message-item";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 type MessageListProps = {
   messages: Message[];

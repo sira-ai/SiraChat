@@ -24,45 +24,52 @@ export default function Home() {
   }, []);
 
   const handleLogin = async (username: string) => {
-    // This function is now much simpler.
-    // It creates the user profile object and stores it in localStorage.
-    // It will also create/update the profile in Firestore.
     setIsLoading(true);
 
-    // Use a consistent UID based on the username for simplicity in this no-auth setup
-    // In a real app with auth, you'd use the Firebase Auth UID.
-    const uid = `user_${username}`; 
+    const uid = `user_${username.toLowerCase().replace(/\s+/g, '_')}`; // Create a more robust UID
     const userRef = doc(db, 'users', uid);
-    const userSnap = await getDoc(userRef);
+    
+    try {
+      const userSnap = await getDoc(userRef);
+      let userProfile: UserProfile;
 
-    let userProfile: UserProfile;
-
-    if (userSnap.exists()) {
-      userProfile = userSnap.data() as UserProfile;
-    } else {
-      // If profile doesn't exist in Firestore, create it.
-      userProfile = {
-        uid: uid,
-        username: username,
-        email: `${username}@sirachat.app`, // Dummy email
-        createdAt: new Date(), // Use client-side date for now
-        avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
-      };
-      // We wrap this in a try-catch in case firestore rules are not yet permissive
-      try {
+      if (userSnap.exists()) {
+        // If profile exists in Firestore, use it as the source of truth
+        userProfile = userSnap.data() as UserProfile;
+      } else {
+        // If profile doesn't exist, create a new one
+        userProfile = {
+          uid: uid,
+          username: username,
+          email: `${username.toLowerCase()}@sirachat.app`, // Dummy email
+          createdAt: new Date(), // Use client-side date for local object
+          avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
+        };
+        // Save the new profile to Firestore
         await setDoc(userRef, {
             ...userProfile,
-            createdAt: serverTimestamp() // Use server timestamp when writing
+            createdAt: serverTimestamp() // Use server timestamp when writing to DB
         });
-      } catch (error) {
-         console.error("Could not save user to firestore. Might be offline or permission issue.", error);
-         // Continue anyway, the app can function with local data
       }
-    }
 
-    localStorage.setItem('sira-chat-user', JSON.stringify(userProfile));
-    setCurrentUser(userProfile);
-    setIsLoading(false);
+      // Store the definitive profile in localStorage and state
+      localStorage.setItem('sira-chat-user', JSON.stringify(userProfile));
+      setCurrentUser(userProfile);
+
+    } catch (error) {
+       console.error("Could not verify or create user profile in Firestore. Operating in offline mode.", error);
+       // Fallback for offline mode: create a local-only profile
+       const localProfile: UserProfile = {
+         uid: uid,
+         username: username,
+         email: `${username.toLowerCase()}@sirachat.app`,
+         avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
+       };
+       localStorage.setItem('sira-chat-user', JSON.stringify(localProfile));
+       setCurrentUser(localProfile);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
 
