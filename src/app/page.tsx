@@ -17,7 +17,7 @@ export default function Home() {
     // Check for user profile in localStorage
     const storedUser = localStorage.getItem('sira-chat-user');
     if (storedUser) {
-      // If user exists, redirect to chat page, but we don't stop loading until redirect is complete
+      // If user exists, redirect to chat page. The loading state will be handled by the browser during redirection.
       router.replace('/chat');
     } else {
       // If no user, stop loading and show the auth page
@@ -66,11 +66,9 @@ export default function Home() {
        };
        localStorage.setItem('sira-chat-user', JSON.stringify(localProfile));
        router.push('/chat');
-    } finally {
-        // In case of error or if redirection takes time, we should eventually stop loading
-        // However, the redirect should handle the view change. If stuck, this might be adjusted.
-        // For now, redirection is the primary way to leave this page.
-    }
+    } 
+    // We don't set loading to false here because the redirect will change the page.
+    // If we did, there might be a flash of the AuthPage before redirecting.
   };
 
   if (isLoading) {

@@ -64,7 +64,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
   useEffect(() => {
     async function loadEmojiData() {
         try {
-            const response = await fetch('https://cdn.jsdelivr.net/npm/@emoji-mart/data');
+            const response = await fetch('https://cdn.jsdelivr.net/npm/@emoji-mart/data/sets/14/apple.json');
             const data = await response.json();
             setEmojiData(data);
         } catch (error) {
@@ -217,33 +217,32 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
           <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
             
             <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                                <Smile className="h-6 w-6" />
-                                <span className="sr-only">Pilih Emoji</span>
-                            </Button>
-                        </PopoverTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                    <p>Emoji</p>
-                    </TooltipContent>
-                </Tooltip>
-                <PopoverContent className="w-auto p-0 mb-2 border-0" side="top" align="start">
-                    {emojiData ? (
-                        <Picker 
-                            data={emojiData} 
-                            onEmojiSelect={handleEmojiSelect} 
-                            theme="dark" 
-                            set="apple" 
-                        />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center p-4">
-                            <Loader2 className="h-8 w-8 animate-spin" />
-                        </div>
-                    )}
-                </PopoverContent>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                          <Smile className="h-6 w-6" />
+                          <span className="sr-only">Pilih Emoji</span>
+                      </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Emoji</p>
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent className="w-auto p-0 mb-2 border-0" side="top" align="start">
+                  {emojiData ? (
+                      <Picker 
+                          data={emojiData} 
+                          onEmojiSelect={handleEmojiSelect} 
+                          theme="dark"
+                      />
+                  ) : (
+                      <div className="w-full h-full flex items-center justify-center p-4">
+                          <Loader2 className="h-8 w-8 animate-spin" />
+                      </div>
+                  )}
+              </PopoverContent>
             </Popover>
 
             <FormField
@@ -271,29 +270,29 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
 
             <Popover open={isAttachmentPopoverOpen} onOpenChange={setAttachmentPopoverOpen}>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" disabled={!!upload}>
-                                {upload ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
-                                <span className="sr-only">Lampirkan File</span>
-                            </Button>
-                        </PopoverTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                    <p>Lampiran</p>
-                    </TooltipContent>
-                </Tooltip>
-                <PopoverContent align="end" side="top" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
-                    <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={!!upload}>
-                        <ImageIcon className="h-8 w-8 mb-1" />
-                        <span className="text-xs">Gambar</span>
-                    </Button>
-                    <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={!!upload}>
-                        <DocumentIcon className="h-8 w-8 mb-1" />
-                        <span className="text-xs">Dokumen</span>
-                    </Button>
-                </PopoverContent>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" disabled={!!upload}>
+                          {upload ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
+                          <span className="sr-only">Lampirkan File</span>
+                      </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Lampiran</p>
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent align="end" side="top" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
+                  <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => {fileInputRef.current?.setAttribute('accept', 'image/*'); fileInputRef.current?.click();}} disabled={!!upload}>
+                      <ImageIcon className="h-8 w-8 mb-1" />
+                      <span className="text-xs">Gambar</span>
+                  </Button>
+                  <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => {fileInputRef.current?.removeAttribute('accept'); fileInputRef.current?.click();}} disabled={!!upload}>
+                      <DocumentIcon className="h-8 w-8 mb-1" />
+                      <span className="text-xs">Dokumen</span>
+                  </Button>
+              </PopoverContent>
             </Popover>
           </div>
 
