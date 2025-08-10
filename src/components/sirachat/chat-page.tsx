@@ -3,9 +3,8 @@
 
 import { useState, useEffect } from "react";
 import type { Message, UserProfile, TypingStatus, Chat } from "@/types";
-import { db, auth } from "@/lib/firebase"; // Import auth
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, where } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { db } from "@/lib/firebase"; 
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, where, setDoc } from "firebase/firestore";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
@@ -38,31 +37,11 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
 
 
    useEffect(() => {
-    // Listen for auth state changes to get the current user
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          setCurrentUser(userSnap.data() as UserProfile);
-        } else {
-            // Fallback if user profile doesn't exist for some reason
-            const username = firebaseUser.email?.split('@')[0] || 'user';
-            const newUserProfile: UserProfile = {
-                uid: firebaseUser.uid,
-                username: username,
-                email: firebaseUser.email!,
-                avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
-            }
-            await setDoc(userRef, newUserProfile);
-            setCurrentUser(newUserProfile);
-        }
-      } else {
-        setCurrentUser(null);
-      }
-    });
-
-    return () => unsubscribeAuth();
+    // Get current user from localStorage
+    const storedUser = localStorage.getItem('sira-chat-user');
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    }
   }, []);
 
 
@@ -127,12 +106,12 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
                 if(partnerId) {
                     const partnerProfile = chatData.memberProfiles[partnerId];
                     if (partnerProfile) {
-                        setChatPartner({
-                            uid: partnerId,
-                            username: partnerProfile.username,
-                            avatarUrl: partnerProfile.avatarUrl,
-                            email: '' // not needed here
-                        });
+                        // Get full profile from users collection for email etc.
+                        const userRef = doc(db, 'users', partnerId);
+                        const userSnap = await getDoc(userRef);
+                        if (userSnap.exists()){
+                            setChatPartner(userSnap.data() as UserProfile);
+                        }
                     } else {
                         // Fallback to fetching from users collection if not in chat doc
                         const userRef = doc(db, 'users', partnerId);
@@ -154,7 +133,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
       typingUnsubscribe();
       unsubscribeChat();
     }
-  }, [currentUser, isGlobal, chatId, isLoading]);
+  }, [currentUser, isGlobal, chatId, isLoading, chatPartner]);
 
   const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
     if (!currentUser || (!isGlobal && !chatId)) return;
@@ -196,7 +175,10 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
   };
   
   const handleUserSelect = async (senderId: string) => {
-    if(!senderId || !isGlobal && senderId === currentUser?.uid) return;
+    if(!senderId || !isGlobal && senderId === currentUser?.uid) {
+        setSelectedUser(chatPartner);
+        return;
+    }
     const userRef = doc(db, 'users', senderId);
     const userSnap = await getDoc(userRef);
     if(userSnap.exists()){

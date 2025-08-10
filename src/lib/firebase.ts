@@ -3,10 +3,9 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getAuth } from "firebase/auth";
+// NOTICE: We are not importing getAuth here anymore
 
 // Your web app's Firebase configuration.
-// This is hardcoded to ensure it's always available and prevent configuration errors.
 const firebaseConfig = {
   "projectId": "sirachat",
   "appId": "1:600267541023:web:ca1101b27fc02585efe32a",
@@ -20,6 +19,7 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const storage = getStorage(app);
-const auth = getAuth(app);
+// NOTICE: We are not exporting auth anymore
+// const auth = getAuth(app);
 
-export { db, storage, auth, app };
+export { db, storage, app };
