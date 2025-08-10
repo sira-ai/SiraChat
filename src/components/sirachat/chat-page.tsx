@@ -2,13 +2,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Message, UserProfile } from "@/types";
+import type { Message, UserProfile, TypingStatus } from "@/types";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc } from "firebase/firestore";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MoreVertical, MessageSquare, LogOut } from "lucide-react";
+import { ArrowLeft, MoreVertical } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,23 +20,21 @@ import UserProfileDialog from "./user-profile-dialog";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
-// This is now a generic chat page, not tied to the main user
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
    useEffect(() => {
-    // In a real app, you'd get the current user from auth context
     const storedUsername = localStorage.getItem('sirachat_username');
     if (storedUsername) {
       setCurrentUser(storedUsername);
     }
 
-    // In a real app, you'd fetch messages for a specific chat ID
-    const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const messagesQuery = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+    const messagesUnsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
       const msgs: Message[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
@@ -53,7 +51,25 @@ export default function ChatPage() {
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    // Listen for typing status changes
+    const typingQuery = query(collection(db, "typingStatus"));
+    const typingUnsubscribe = onSnapshot(typingQuery, (querySnapshot) => {
+        const currentTypingUsers: string[] = [];
+        const localUsername = localStorage.getItem('sirachat_username');
+        querySnapshot.forEach((doc) => {
+            const data = doc.data() as TypingStatus;
+            // Only add if user is typing and is not the current user
+            if (data.isTyping && doc.id !== localUsername) {
+                currentTypingUsers.push(doc.id);
+            }
+        });
+        setTypingUsers(currentTypingUsers);
+    });
+
+    return () => {
+      messagesUnsubscribe();
+      typingUnsubscribe();
+    }
   }, []);
 
   const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
@@ -73,11 +89,21 @@ export default function ChatPage() {
   };
   
   const handleUserSelect = (sender: string) => {
-    // In a group chat, you might fetch profile info from a 'users' collection
     setSelectedUser({ username: sender, avatarUrl: `https://placehold.co/100x100.png` });
   }
 
-  // Placeholder for the chat you are in. In a real app this would be dynamic.
+  const getTypingIndicatorText = () => {
+    if (typingUsers.length === 0) {
+      return `${currentChat.members} anggota`;
+    }
+    if (typingUsers.length === 1) {
+      return `${typingUsers[0]} sedang mengetik...`;
+    }
+    if (typingUsers.length > 1) {
+      return `${typingUsers.slice(0, 2).join(", ")} & lainnya sedang mengetik...`;
+    }
+  }
+
   const currentChat = {
     name: "YAPPING ||",
     members: 10,
@@ -100,9 +126,11 @@ export default function ChatPage() {
                 {currentChat.name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h1 className="text-lg font-bold font-headline text-foreground leading-tight">{currentChat.name}</h1>
-              <p className="text-sm text-muted-foreground">{currentChat.members} anggota</p>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold font-headline text-foreground leading-tight truncate">{currentChat.name}</h1>
+              <p className="text-sm text-primary truncate">
+                {typingUsers.length > 0 ? getTypingIndicatorText() : `${currentChat.members} anggota`}
+              </p>
             </div>
         </div>
         <div className="flex items-center gap-2">
@@ -114,7 +142,6 @@ export default function ChatPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {/* Menu items can go here later, e.g. "Lihat Info Grup", "Bisukan", etc. */}
                 <DropdownMenuItem>Info Grup</DropdownMenuItem>
                 <DropdownMenuItem>Keluar Grup</DropdownMenuItem>
               </DropdownMenuContent>
@@ -133,12 +160,10 @@ export default function ChatPage() {
         )}
       </div>
       <footer className="bg-transparent border-t-0 backdrop-blur-sm">
-        <MessageInput onSendMessage={handleSendMessage} />
+        <MessageInput onSendMessage={handleSendMessage} currentUser={currentUser} />
       </footer>
     </div>
     <UserProfileDialog user={selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)} />
     </>
   );
 }
-
-    

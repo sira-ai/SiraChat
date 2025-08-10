@@ -14,11 +14,12 @@ import {
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, ThumbsUp, History, Search } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { storage } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, setDoc } from "firebase/firestore";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Input } from "../ui/input";
@@ -30,6 +31,7 @@ const formSchema = z.object({
 
 type MessageInputProps = {
   onSendMessage: (message: string, imageUrl?: string, stickerUrl?: string) => void;
+  currentUser: string | null;
 };
 
 const emojis = ['😀', '😂', '😍', '🤔', '😎', '😢', '😡', '👍', '👎', '🎉', '❤️', '🙏', '🚀', '🔥', '💡', '💯'];
@@ -48,7 +50,10 @@ const stickers = [
     '/stickers/sticker12.png',
 ];
 
-export default function MessageInput({ onSendMessage }: MessageInputProps) {
+// Debounce timer for typing indicator
+let typingTimer: NodeJS.Timeout;
+
+export default function MessageInput({ onSendMessage, currentUser }: MessageInputProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -64,11 +69,47 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
   const [isUploading, setIsUploading] = useState(false);
   const hasText = !!form.watch("message");
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  // Typing indicator logic
+  const updateTypingStatus = async (isTyping: boolean) => {
+    if (!currentUser) return;
+    try {
+      const typingRef = doc(db, "typingStatus", currentUser);
+      await setDoc(typingRef, { isTyping, timestamp: new Date() });
+    } catch (error) {
+      console.error("Error updating typing status:", error);
+    }
+  };
+
+  const handleOnInput = () => {
+    adjustTextareaHeight();
+    if (!currentUser) return;
+    
+    updateTypingStatus(true);
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+        updateTypingStatus(false);
+    }, 2000); // 2 seconds timeout
+  };
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(typingTimer);
+      // Clean up typing status on component unmount
+      if (currentUser) {
+          updateTypingStatus(false);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
+
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     if (values.message.trim()) {
       onSendMessage(values.message);
       form.reset({ message: '' });
       textareaRef.current?.focus();
+      if (currentUser) updateTypingStatus(false);
+      clearTimeout(typingTimer);
       setTimeout(adjustTextareaHeight, 0);
     }
   }
@@ -175,7 +216,7 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
                           onKeyDown={handleKeyDown}
                           {...field}
                           ref={textareaRef}
-                          onInput={adjustTextareaHeight}
+                          onInput={handleOnInput}
                         />
                       </FormControl>
                       <FormMessage />

@@ -14,3 +14,8 @@ export type UserProfile = {
     avatarUrl?: string;
     status?: string;
 }
+
+export type TypingStatus = {
+    isTyping: boolean;
+    timestamp: Date;
+}
