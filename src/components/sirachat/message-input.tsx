@@ -203,24 +203,29 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
           <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
             
             <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                            <Smile className="h-6 w-6" />
-                            <span className="sr-only">Pilih Emoji</span>
-                        </Button>
-                      </PopoverTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="center">
-                        <p>Emoji</p>
-                    </TooltipContent>
-                </Tooltip>
-              <PopoverContent className="w-auto p-0 mb-2 border-0" side="top" align="start">
-                <Picker data={async () => {
-                        const response = await fetch('https://cdn.jsdelivr.net/npm/@emoji-mart/data');
-                        return response.json();
-                    }} onEmojiSelect={handleEmojiSelect} theme="dark" set="apple" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                      <Smile className="h-6 w-6" />
+                      <span className="sr-only">Pilih Emoji</span>
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Emoji</p>
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent className="w-auto p-0 mb-2 border-0" side="bottom" align="start">
+                <Picker 
+                  data={async () => {
+                    const response = await fetch('https://cdn.jsdelivr.net/npm/@emoji-mart/data');
+                    return response.json();
+                  }} 
+                  onEmojiSelect={handleEmojiSelect} 
+                  theme="dark" 
+                  set="apple" 
+                />
               </PopoverContent>
             </Popover>
 
@@ -258,11 +263,11 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
                     </Button>
                   </PopoverTrigger>
                 </TooltipTrigger>
-                <TooltipContent side="top" align="center">
+                <TooltipContent>
                   <p>Lampiran</p>
                 </TooltipContent>
               </Tooltip>
-              <PopoverContent align="end" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
+              <PopoverContent align="end" side="bottom" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
                 <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={!!upload}>
                   <ImageIcon className="h-8 w-8 mb-1" />
                   <span className="text-xs">Gambar</span>
