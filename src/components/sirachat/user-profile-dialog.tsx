@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AtSign, CalendarDays, Edit, Loader2, Save, User as UserIcon, X } from "lucide-react";
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -32,12 +32,19 @@ type UserProfileDialogProps = {
 export default function UserProfileDialog({ user, isMyProfile, open = false, onOpenChange }: UserProfileDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [username, setUsername] = useState(user?.username || "");
+  const [username, setUsername] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (user) {
+      setUsername(user.username);
+      setAvatarPreview(user.avatarUrl || null);
+    }
+  }, [user]);
+  
   if (!user) {
     return null;
   }
@@ -47,7 +54,7 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
       // Reset state on cancel
       setUsername(user.username);
       setAvatarFile(null);
-      setAvatarPreview(null);
+      setAvatarPreview(user.avatarUrl || null);
     }
     setIsEditing(!isEditing);
   }
@@ -83,7 +90,6 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
 
         if (Object.keys(updates).length > 0) {
             await updateDoc(userRef, updates);
-            // Local storage will be updated by the listener in ChatLayout
             toast({ title: "Profil berhasil diperbarui!" });
         }
 
@@ -98,8 +104,25 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
         setAvatarPreview(null);
     }
   }
+  
+  const getJoinDate = () => {
+    if (!user.createdAt) return 'Tidak diketahui';
+    try {
+        // Firestore Timestamps have a toDate() method
+        const date = typeof (user.createdAt as any).toDate === 'function' 
+            ? (user.createdAt as any).toDate()
+            : new Date(user.createdAt);
 
-  const joinDate = user.createdAt ? format(new Date(user.createdAt), 'd MMMM yyyy', { locale: id }) : 'Tidak diketahui';
+        if (isNaN(date.getTime())) {
+            return 'Tidak diketahui';
+        }
+        return format(date, 'd MMMM yyyy', { locale: id });
+    } catch (e) {
+        return 'Tidak diketahui';
+    }
+  }
+
+  const joinDate = getJoinDate();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -114,9 +137,9 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
             )}
           <div className="relative h-24 w-24 mb-4">
             <Avatar className="h-24 w-24">
-                <AvatarImage src={avatarPreview || user.avatarUrl} alt={user.username} />
+                <AvatarImage src={avatarPreview || user.avatarUrl} alt={username} />
                 <AvatarFallback className="text-4xl bg-accent text-accent-foreground">
-                {user.username.charAt(0).toUpperCase()}
+                {username.charAt(0).toUpperCase()}
                 </AvatarFallback>
             </Avatar>
             {isEditing && (
@@ -189,5 +212,3 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
     </Dialog>
   );
 }
-
-    
