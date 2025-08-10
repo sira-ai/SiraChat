@@ -34,7 +34,12 @@ type ChatWithPartner = Chat & {
 
 function formatTimestamp(timestamp: any) {
     if (!timestamp) return '';
-    return formatDistanceToNow(timestamp.toDate(), { addSuffix: true, locale: id });
+    // Firestore Timestamps can be null, check before calling toDate()
+    if (timestamp && typeof timestamp.toDate === 'function') {
+      return formatDistanceToNow(timestamp.toDate(), { addSuffix: true, locale: id });
+    }
+    // Fallback for cases where it might already be a Date object or string
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: id });
 }
 
 
@@ -47,11 +52,10 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
   const router = useRouter();
 
    useEffect(() => {
-    // Query chats where the current user is a member
+    // Query chats where the current user is a member, without server-side ordering.
     const chatsQuery = query(
       collection(db, "chats"),
-      where("members", "array-contains", currentUser.uid),
-      orderBy("lastMessageTimestamp", "desc")
+      where("members", "array-contains", currentUser.uid)
     );
 
     const unsubscribe = onSnapshot(chatsQuery, async (querySnapshot) => {
@@ -77,6 +81,14 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
               }
           }
       }
+
+      // Sort chats on the client-side
+      chatsData.sort((a, b) => {
+        const timeA = a.lastMessageTimestamp?.toDate()?.getTime() || 0;
+        const timeB = b.lastMessageTimestamp?.toDate()?.getTime() || 0;
+        return timeB - timeA;
+      });
+
       setChats(chatsData);
       setIsLoading(false);
     }, (error) => {
@@ -109,16 +121,14 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
     
     // Sort UIDs to create a consistent ID for the 1-on-1 chat
     const sortedMembers = [currentUser.uid, partner.uid].sort();
-    const chatId = sortedMembers.join('_');
+    
+    // Although we can't query for a specific array, we can make the ID predictable
+    const predictableChatId = sortedMembers.join('_');
+    const chatRef = doc(db, "chats", predictableChatId);
 
-    const chatRef = doc(db, "chats", chatId);
+    // Let's try to get the doc directly. If it exists, navigate. If not, create.
     const chatsRef = collection(db, "chats");
-    // Query to find if a chat already exists between the two users
-    // This is a more robust way to check for existing chats
-    const q = query(chatsRef, 
-        where('members', '==', sortedMembers)
-    );
-
+    const q = query(chatsRef, where('members', '==', sortedMembers), limit(1));
     const querySnapshot = await getDocs(q);
     
     if (!querySnapshot.empty) {
@@ -126,7 +136,8 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
       const existingChat = querySnapshot.docs[0];
       router.push(`/chat/${existingChat.id}`);
     } else {
-      // Chat doesn't exist, create it
+      // Chat doesn't exist, create it with a predictable ID if possible,
+      // or just add a new one. AddDoc is safer for concurrency.
       const newChatRef = await addDoc(chatsRef, {
         members: sortedMembers,
         memberProfiles: {
