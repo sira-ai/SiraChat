@@ -3,11 +3,11 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Pencil, MessageSquarePlus, Globe } from "lucide-react";
+import { Pencil, Globe } from "lucide-react";
 import ChatListItem from "./chat-list-item";
 import { ScrollArea } from "../ui/scroll-area";
 import { useRouter } from "next/navigation";
-import { collection, query, onSnapshot, where, getDocs, addDoc, serverTimestamp, doc, orderBy, limit } from "firebase/firestore";
+import { collection, query, onSnapshot, where, getDocs, addDoc, serverTimestamp, doc, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { UserProfile, Chat } from "@/types";
 import { Skeleton } from "../ui/skeleton";
@@ -41,7 +41,6 @@ function formatTimestamp(timestamp: any) {
     }
     return formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: id });
 }
-
 
 export default function ChatListContent({ currentUser, onChatSelect }: ChatListContentProps) {
   const [chats, setChats] = useState<ChatWithPartner[]>([]);
@@ -82,8 +81,8 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
       }
 
       chatsData.sort((a, b) => {
-        const timeA = a.lastMessageTimestamp?.toDate()?.getTime() || 0;
-        const timeB = b.lastMessageTimestamp?.toDate()?.getTime() || 0;
+        const timeA = a.lastMessageTimestamp?.toDate?.()?.getTime() || 0;
+        const timeB = b.lastMessageTimestamp?.toDate?.()?.getTime() || 0;
         return timeB - timeA;
       });
 
@@ -122,7 +121,6 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
     setIsNewChatDialogOpen(false);
     
     const sortedMembers = [currentUser.uid, partner.uid].sort();
-    const predictableChatId = sortedMembers.join('_');
     
     const chatsRef = collection(db, "chats");
     const q = query(chatsRef, where('members', '==', sortedMembers), limit(1));
@@ -132,7 +130,7 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
     
       if (!querySnapshot.empty) {
         const existingChat = querySnapshot.docs[0];
-        router.push(`/chat/${existingChat.id}`);
+        onChatSelect(existingChat.id)
       } else {
         const newChatRef = await addDoc(chatsRef, {
           members: sortedMembers,
@@ -150,7 +148,7 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
           lastMessage: null,
           lastMessageTimestamp: null,
         });
-        router.push(`/chat/${newChatRef.id}`);
+        onChatSelect(newChatRef.id)
       }
     } catch(e) {
       console.error("Failed to create or open chat", e);
@@ -159,13 +157,13 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
 
 
   return (
-    <div className="flex h-screen w-full flex-col bg-card relative border-r">
-        <header className="flex items-center justify-between p-3 shadow-sm z-10">
+    <div className="flex h-full w-full flex-col bg-card">
+        <header className="flex items-center justify-between p-3 border-b">
             <h1 className="text-xl font-bold font-headline text-foreground">Obrolan</h1>
             <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
                 <DialogTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={handleOpenNewChatDialog}>
-                        <Pencil className="h-6 w-6" />
+                        <Pencil className="h-5 w-5" />
                     </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -186,16 +184,16 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
                                 ))}
                             </div>
                         ) : (
-                            <div className="space-y-1">
-                                {users.map(user => (
-                                    <div key={user.uid} onClick={() => handleCreateOrOpenChat(user)} className="flex items-center gap-3 p-2 rounded-md hover:bg-background/50 cursor-pointer transition-colors">
-                                        <Avatar className="h-12 w-12">
+                             <div className="space-y-1">
+                                {users.length > 0 ? users.map(user => (
+                                    <div key={user.uid} onClick={() => handleCreateOrOpenChat(user)} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors">
+                                        <Avatar className="h-11 w-11">
                                             <AvatarImage src={user.avatarUrl} alt={user.username}/>
                                             <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
                                         </Avatar>
                                         <p className="font-semibold">{user.username}</p>
                                     </div>
-                                ))}
+                                )) : <p className="text-sm text-center text-muted-foreground pt-4">Tidak ada pengguna lain yang ditemukan.</p>}
                             </div>
                         )}
                     </ScrollArea>
@@ -218,21 +216,17 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
                 </div>
             ) : (
                 <div className="divide-y divide-border">
-                    <Link href="/chat" className="cursor-pointer" onClick={() => onChatSelect('global')}>
-                      <div className="flex items-center gap-3 p-3 hover:bg-background/50 transition-colors">
-                        <Avatar className="h-14 w-14 flex-shrink-0 bg-primary/20 text-primary">
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Globe className="h-8 w-8" />
-                          </div>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <h2 className="font-bold truncate text-foreground">Ruang Obrolan Global</h2>
-                          <p className="text-sm truncate text-muted-foreground">Ngobrol dengan semua pengguna SiraChat</p>
-                        </div>
-                      </div>
-                    </Link>
-                    <Separator />
-                    {chats.length > 0 ? chats.map((chat) => (
+                    <div onClick={() => onChatSelect('global')} className="cursor-pointer">
+                      <ChatListItem
+                          avatar=""
+                          isGlobal
+                          name="Ruang Obrolan Global"
+                          lastMessage="Ngobrol dengan semua pengguna"
+                          time=""
+                      />
+                    </div>
+                    
+                    {chats.map((chat) => (
                       <div key={chat.id} onClick={() => onChatSelect(chat.id)} className="cursor-pointer">
                         <ChatListItem
                             avatar={chat.partner.avatarUrl || `https://placehold.co/100x100.png`}
@@ -241,13 +235,7 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
                             time={formatTimestamp(chat.lastMessageTimestamp)}
                         />
                       </div>
-                    )) : (
-                       <div className="flex flex-col items-center justify-center h-full text-center p-8 mt-16">
-                            <MessageSquarePlus className="h-20 w-20 text-muted-foreground/50 mb-4" />
-                            <h2 className="text-xl font-semibold">Belum Ada Obrolan</h2>
-                            <p className="text-muted-foreground">Klik tombol pensil untuk memulai percakapan baru.</p>
-                        </div>
-                    )}
+                    ))}
                 </div>
             )}
         </ScrollArea>

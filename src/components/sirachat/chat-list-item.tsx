@@ -4,7 +4,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { BellOff } from "lucide-react";
+import { BellOff, Globe } from "lucide-react";
 import Image from "next/image";
 
 type ChatListItemProps = {
@@ -15,6 +15,7 @@ type ChatListItemProps = {
   unreadCount?: number;
   isMuted?: boolean;
   isTyping?: boolean;
+  isGlobal?: boolean;
   dataAiHint?: string;
 };
 
@@ -26,17 +27,26 @@ export default function ChatListItem({
   unreadCount = 0,
   isMuted = false,
   isTyping = false,
+  isGlobal = false,
   dataAiHint
 }: ChatListItemProps) {
   const hasUnread = unreadCount > 0;
 
   return (
-    <div className="flex items-center gap-3 p-3 hover:bg-card/50 transition-colors cursor-pointer">
+    <div className="flex items-center gap-3 p-3 hover:bg-muted transition-colors cursor-pointer">
       <Avatar className="h-14 w-14 flex-shrink-0">
-         <AvatarImage src={avatar} alt={name} data-ai-hint={dataAiHint}/>
-        <AvatarFallback className="text-xl bg-primary text-primary-foreground">
-          {name.charAt(0).toUpperCase()}
-        </AvatarFallback>
+        {isGlobal ? (
+          <div className="w-full h-full flex items-center justify-center rounded-full bg-primary/20 text-primary">
+            <Globe className="h-8 w-8" />
+          </div>
+        ) : (
+          <>
+            <AvatarImage src={avatar} alt={name} data-ai-hint={dataAiHint}/>
+            <AvatarFallback className="text-xl bg-primary text-primary-foreground">
+              {name.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </>
+        )}
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">

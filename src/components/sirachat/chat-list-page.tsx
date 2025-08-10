@@ -3,8 +3,8 @@
 
 import React, { useState } from "react";
 import type { UserProfile } from "@/types";
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from "@/components/ui/sidebar";
-import { LogOut, MessageSquare, Settings, User as UserIcon } from "lucide-react";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
+import { LogOut, MessageSquare } from "lucide-react";
 import ChatPage from "./chat-page";
 import ChatListContent from "./chat-list-content";
 import { useRouter } from 'next/navigation';
@@ -37,15 +37,12 @@ export default function ChatListPage({ currentUser, onLogout }: ChatLayoutProps)
   return (
     <SidebarProvider>
         <div className="flex h-screen w-screen bg-background">
-            <Sidebar collapsible="icon" className="w-[320px]">
-                <SidebarHeader>
-                    {/* Header can be a logo or app name */}
-                </SidebarHeader>
-                <SidebarContent>
+            <Sidebar className="w-[320px] border-r">
+                <SidebarContent className="p-0">
                     <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
                 </SidebarContent>
-                <SidebarFooter>
-                    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-card/50 transition-colors">
+                <SidebarFooter className="p-2">
+                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-card transition-colors">
                         <Avatar className="h-10 w-10">
                             <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
                             <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
@@ -66,6 +63,7 @@ export default function ChatListPage({ currentUser, onLogout }: ChatLayoutProps)
                         key={selectedChatId} // Re-mounts component on chat change
                         isGlobal={selectedChatId === 'global'}
                         chatId={selectedChatId !== 'global' ? selectedChatId : undefined}
+                        currentUser={currentUser}
                     />
                 ) : (
                     <div className="flex h-full flex-col items-center justify-center bg-background text-muted-foreground">

@@ -4,11 +4,11 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Message, UserProfile, TypingStatus, Chat } from "@/types";
 import { db } from "@/lib/firebase"; 
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, where, setDoc } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MoreVertical, Globe, User } from "lucide-react";
+import { MoreVertical, Globe, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,33 +17,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import UserProfileDialog from "./user-profile-dialog";
-import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 type ChatPageProps = {
   isGlobal?: boolean;
   chatId?: string;
+  currentUser: UserProfile | null;
 };
 
-export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
+export default function ChatPage({ isGlobal = false, chatId, currentUser }: ChatPageProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [chatPartner, setChatPartner] = useState<UserProfile | null>(null);
-  const router = useRouter();
-
-
-   useEffect(() => {
-    const storedUser = localStorage.getItem('sira-chat-user');
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
-    } else {
-      router.push('/'); // Redirect if no user
-    }
-  }, [router]);
-
 
   useEffect(() => {
     if (!currentUser || (!isGlobal && !chatId)) {
@@ -51,7 +38,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
         return;
     };
 
-    setIsLoading(true); // Set loading to true at the beginning of effect
+    setIsLoading(true); 
 
     const messagesCollectionPath = isGlobal ? "messages" : `chats/${chatId}/messages`;
     const messagesQuery = query(collection(db, messagesCollectionPath), orderBy("timestamp", "asc"));
@@ -100,10 +87,22 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
                 const chatData = chatSnap.data() as Chat;
                 const partnerId = chatData.members.find((id: string) => id !== currentUser.uid);
                 if(partnerId) {
-                    const userRef = doc(db, 'users', partnerId);
-                    const userSnap = await getDoc(userRef);
-                    if (userSnap.exists()){
-                        setChatPartner(userSnap.data() as UserProfile);
+                    // Use profile from chat document first
+                    const partnerProfile = chatData.memberProfiles[partnerId];
+                    if (partnerProfile) {
+                        setChatPartner({
+                            uid: partnerId,
+                            username: partnerProfile.username,
+                            avatarUrl: partnerProfile.avatarUrl,
+                            email: ''
+                        });
+                    } else {
+                       // Fallback to fetch from users collection if not in chat doc
+                       const userRef = doc(db, 'users', partnerId);
+                       const userSnap = await getDoc(userRef);
+                       if (userSnap.exists()){
+                           setChatPartner(userSnap.data() as UserProfile);
+                       }
                     }
                 }
             }
@@ -119,7 +118,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
       typingUnsubscribe();
       unsubscribeChat();
     }
-  }, [currentUser, isGlobal, chatId, chatPartner, router]);
+  }, [currentUser, isGlobal, chatId, chatPartner]);
 
   const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
     if (!currentUser || (!isGlobal && !chatId)) return;
@@ -184,7 +183,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
   if (isLoading || !currentUser) {
     return (
         <div className="flex h-screen w-full flex-col bg-background">
-            <header className="flex items-center justify-between border-b p-3 shadow-sm bg-card">
+            <header className="flex items-center justify-between border-b p-3 shadow-sm bg-card h-[69px]">
                  <div className="flex items-center gap-3">
                      <Skeleton className="h-10 w-10 rounded-full" />
                      <div className="min-w-0">
@@ -199,7 +198,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
                 <Skeleton className="h-20 w-3/4 ml-auto rounded-lg" />
                 <Skeleton className="h-16 w-2/4 rounded-lg" />
             </div>
-             <footer className="bg-transparent border-t-0 backdrop-blur-sm p-2">
+             <footer className="bg-transparent border-t p-2">
                  <Skeleton className="h-12 w-full rounded-full" />
              </footer>
         </div>
@@ -213,7 +212,11 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
       <header className="flex items-center justify-between border-b p-3 shadow-sm bg-card">
         <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10 cursor-pointer" onClick={() => handleUserSelect(chatPartner?.uid!)}>
-              {isGlobal ? <Globe className="h-full w-full p-2"/> : <AvatarImage src={currentChatAvatar} alt={currentChatName} />}
+              {isGlobal ? 
+                (<div className="w-full h-full flex items-center justify-center rounded-full bg-primary/20 text-primary">
+                    <Globe className="h-6 w-6" />
+                </div>)
+              : <AvatarImage src={currentChatAvatar} alt={currentChatName} />}
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {currentChatName.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -221,7 +224,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
             <div className="min-w-0">
               <h1 className="text-lg font-bold font-headline text-foreground leading-tight truncate cursor-pointer" onClick={() => handleUserSelect(chatPartner?.uid!)}>{currentChatName}</h1>
               <p className="text-sm text-primary truncate">
-                {isGlobal ? "Semua Pengguna Online" : getTypingIndicatorText()}
+                {isGlobal ? "Ngobrol dengan semua pengguna SiraChat" : getTypingIndicatorText()}
               </p>
             </div>
         </div>
