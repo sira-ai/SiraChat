@@ -4,9 +4,12 @@
 import { useState, useEffect } from 'react';
 import ChatPage from "@/components/sirachat/chat-page";
 import type { UserProfile } from '@/types';
+import { useParams } from 'next/navigation';
 
-export default function PrivateChat({ params }: { params: { id: string } }) {
+export default function PrivateChat() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const params = useParams();
+  const chatId = params.id as string;
 
   useEffect(() => {
     const storedUser = localStorage.getItem('sira-chat-user');
@@ -21,7 +24,7 @@ export default function PrivateChat({ params }: { params: { id: string } }) {
 
   return (
     <ChatPage
-      chatId={params.id}
+      chatId={chatId}
       currentUser={currentUser}
     />
   );
