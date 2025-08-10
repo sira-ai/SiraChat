@@ -20,6 +20,17 @@ export type UserProfile = {
 }
 
 export type TypingStatus = {
+  [uid: string]: {
     isTyping: boolean;
+    username: string;
     timestamp: Date;
+  };
+};
+
+export type Chat = {
+    id: string;
+    members: string[]; // array of UIDs
+    lastMessage?: string;
+    lastMessageTimestamp?: Timestamp;
+    createdAt: Timestamp;
 }

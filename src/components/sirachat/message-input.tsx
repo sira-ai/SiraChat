@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast";
 import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Input } from "../ui/input";
@@ -33,6 +33,7 @@ const formSchema = z.object({
 type MessageInputProps = {
   onSendMessage: (message: string, imageUrl?: string, stickerUrl?: string) => void;
   currentUser: UserProfile | null;
+  chatId?: string;
 };
 
 const emojis = ['😀', '😂', '😍', '🤔', '😎', '😢', '😡', '👍', '👎', '🎉', '❤️', '🙏', '🚀', '🔥', '💡', '💯'];
@@ -54,7 +55,7 @@ const stickers = [
 // Debounce timer for typing indicator
 let typingTimer: NodeJS.Timeout;
 
-export default function MessageInput({ onSendMessage, currentUser }: MessageInputProps) {
+export default function MessageInput({ onSendMessage, currentUser, chatId }: MessageInputProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -72,11 +73,19 @@ export default function MessageInput({ onSendMessage, currentUser }: MessageInpu
 
   // Typing indicator logic
   const updateTypingStatus = async (isTyping: boolean) => {
-    if (!currentUser) return;
+    if (!currentUser || !chatId) return;
     try {
-      // Use username for typing status id
-      const typingRef = doc(db, "typingStatus", currentUser.username);
-      await setDoc(typingRef, { isTyping, timestamp: new Date() });
+      const typingRef = doc(db, "typingStatus", chatId);
+      // We use dot notation to update a specific field in the map
+      const updateData = {
+        [`${currentUser.uid}`]: {
+          isTyping,
+          username: currentUser.username,
+          timestamp: serverTimestamp(),
+        }
+      }
+      // Use set with merge to create/update the document
+      await setDoc(typingRef, updateData, { merge: true });
     } catch (error) {
       console.error("Error updating typing status:", error);
     }
@@ -102,7 +111,7 @@ export default function MessageInput({ onSendMessage, currentUser }: MessageInpu
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+  }, [currentUser, chatId]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {

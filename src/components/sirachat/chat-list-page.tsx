@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Menu, Search, Pencil, LogOut } from "lucide-react";
 import ChatListItem from "./chat-list-item";
 import { ScrollArea } from "../ui/scroll-area";
-import Link from "next/link";
-import { collection, query, onSnapshot, where } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import { collection, query, onSnapshot, where, getDocs, addDoc, or, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type { UserProfile } from "@/types";
 import { Skeleton } from "../ui/skeleton";
 
@@ -20,6 +20,7 @@ type ChatListPageProps = {
 export default function ChatListPage({ currentUser, onLogout }: ChatListPageProps) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     // Query all users except the current one
@@ -39,6 +40,39 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
 
     return () => unsubscribe();
   }, [currentUser.uid]);
+
+  const handleCreateOrOpenChat = async (partner: UserProfile) => {
+    const chatsRef = collection(db, "chats");
+    // Query to find if a chat already exists between the two users
+    const q = query(chatsRef, 
+        where('members', 'array-contains', currentUser.uid)
+    );
+
+    const querySnapshot = await getDocs(q);
+    let existingChatId: string | null = null;
+
+    querySnapshot.forEach(doc => {
+        const chatData = doc.data();
+        if (chatData.members.includes(partner.uid)) {
+            existingChatId = doc.id;
+        }
+    });
+
+
+    if (existingChatId) {
+      // Chat exists, navigate to it
+      router.push(`/chat/${existingChatId}`);
+    } else {
+      // Chat doesn't exist, create it
+      const newChatRef = await addDoc(chatsRef, {
+        members: [currentUser.uid, partner.uid],
+        createdAt: new Date(),
+        lastMessage: null,
+      });
+      router.push(`/chat/${newChatRef.id}`);
+    }
+  };
+
 
   return (
     <div className="flex h-screen w-screen flex-col bg-background relative">
@@ -75,14 +109,14 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
             ) : (
                 <div className="divide-y divide-border">
                     {users.map((user) => (
-                      <Link href={`/chat/${user.uid}`} key={user.uid}>
+                      <div key={user.uid} onClick={() => handleCreateOrOpenChat(user)} className="cursor-pointer">
                         <ChatListItem
                             avatar={user.avatarUrl || `https://placehold.co/100x100.png?text=${user.username.charAt(0).toUpperCase()}`}
                             name={user.username}
                             lastMessage={`Mulai percakapan dengan ${user.username}`}
                             time=""
                         />
-                      </Link>
+                      </div>
                     ))}
                 </div>
             )}
