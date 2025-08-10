@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,7 +8,7 @@ import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timest
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, MessageSquare, LogOut } from "lucide-react";
+import { ArrowLeft, MoreVertical, MessageSquare, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,18 +17,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
 import UserProfileDialog from "./user-profile-dialog";
+import Link from "next/link";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 
-type ChatPageProps = {
-  username: string;
-  onLogout: () => void;
-};
-
-export default function ChatPage({ username, onLogout }: ChatPageProps) {
+// This is now a generic chat page, not tied to the main user
+export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
 
-  useEffect(() => {
+   useEffect(() => {
+    // In a real app, you'd get the current user from auth context
+    const storedUsername = localStorage.getItem('sirachat_username');
+    if (storedUsername) {
+      setCurrentUser(storedUsername);
+    }
+
+    // In a real app, you'd fetch messages for a specific chat ID
     const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const msgs: Message[] = [];
@@ -50,11 +57,12 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
   }, []);
 
   const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
+    if (!currentUser) return;
     if (text.trim() === '' && !imageUrl && !stickerUrl) return;
     try {
       await addDoc(collection(db, "messages"), {
         text: text,
-        sender: username,
+        sender: currentUser,
         timestamp: serverTimestamp(),
         imageUrl: imageUrl || null,
         stickerUrl: stickerUrl || null,
@@ -68,18 +76,33 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
     setSelectedUser({ username: sender });
   }
 
+  // Placeholder for the person you are chatting with
+  const chatPartner = {
+    username: "Ibra Decode",
+    status: "online"
+  }
+
   return (
     <>
     <div className="flex h-screen w-screen flex-col bg-background">
       <header className="flex items-center justify-between border-b p-3 shadow-sm bg-card">
         <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/20 rounded-full">
-              <MessageSquare className="h-5 w-5 text-primary"/>
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <Avatar className="h-10 w-10">
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {chatPartner.username.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-lg font-bold font-headline text-foreground leading-tight">{chatPartner.username}</h1>
+              <p className="text-sm text-primary">{chatPartner.status}</p>
             </div>
-            <h1 className="text-xl font-bold font-headline text-foreground">SiraChat</h1>
         </div>
         <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground hidden sm:inline">Selamat datang, <span className="font-bold text-foreground">{username}</span></span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -88,15 +111,12 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onLogout} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Ganti Nama</span>
-                </DropdownMenuItem>
+                {/* Menu items can go here later */}
               </DropdownMenuContent>
             </DropdownMenu>
         </div>
       </header>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-card/25">
         {isLoading ? (
           <div className="p-4 space-y-4">
             <Skeleton className="h-16 w-3/4" />
@@ -104,7 +124,7 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
             <Skeleton className="h-16 w-2/4" />
           </div>
         ) : (
-          <MessageList messages={messages} currentUser={username} onUserSelect={handleUserSelect} />
+          <MessageList messages={messages} currentUser={currentUser || ''} onUserSelect={handleUserSelect} />
         )}
       </div>
       <footer className="border-t p-2 sm:p-4 bg-card/50">

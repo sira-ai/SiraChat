@@ -1,23 +1,21 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import UsernameSetup from '@/components/sirachat/username-setup';
-import ChatPage from '@/components/sirachat/chat-page';
+import ChatListPage from '@/components/sirachat/chat-list-page'; // Changed component
 import { Skeleton } from '@/components/ui/skeleton';
+import useClientEffect from '@/hooks/use-client-effect'; // Custom hook for client-side only logic
 
 export default function Home() {
   const [username, setUsername] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // This code runs only on the client, after hydration
-    try {
-      const storedUsername = localStorage.getItem('sirachat_username');
-      if (storedUsername) {
-        setUsername(storedUsername);
-      }
-    } catch (error) {
-      console.error("Could not access localStorage", error);
+  // Custom hook to run localStorage logic only on the client
+  useClientEffect(() => {
+    const storedUsername = localStorage.getItem('sirachat_username');
+    if (storedUsername) {
+      setUsername(storedUsername);
     }
     setIsLoading(false);
   }, []);
@@ -53,7 +51,8 @@ export default function Home() {
   }
 
   return username ? (
-    <ChatPage username={username} onLogout={handleLogout} />
+    // If logged in, show the new Chat List Page
+    <ChatListPage username={username} onLogout={handleLogout} />
   ) : (
     <UsernameSetup onUsernameSet={handleUsernameSet} />
   );
