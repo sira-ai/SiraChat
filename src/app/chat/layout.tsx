@@ -3,13 +3,14 @@
 
 import React, { useState, useEffect } from "react";
 import type { UserProfile } from "@/types";
-import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
 import { LogOut } from "lucide-react";
 import ChatListContent from "@/components/sirachat/chat-list-content";
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import ChatListPage from "@/components/sirachat/chat-list-page";
 
 export default function ChatLayout({
   children,
