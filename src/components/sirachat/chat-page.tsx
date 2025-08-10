@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Message, UserProfile, TypingStatus, Chat } from "@/types";
 import { db } from "@/lib/firebase"; 
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, writeBatch, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, writeBatch, deleteDoc, getDocs } from "firebase/firestore";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
@@ -235,7 +235,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
     try {
         // Delete all messages in the chat subcollection
         const messagesRef = collection(db, `chats/${chatId}/messages`);
-        const messagesSnap = await getDoc(messagesRef);
+        const messagesSnap = await getDocs(messagesRef);
         
         const batch = writeBatch(db);
         messagesSnap.docs.forEach((doc) => {
@@ -398,7 +398,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
         <MessageList 
             messages={messages} 
             currentUser={currentUser} 
-            onUserSelect={handleUserSelect} 
+            onUserSelect={onUserSelect} 
             chatPartner={chatPartner}
             onEditMessage={(message) => setEditingMessage(message)}
             onDeleteMessage={handleDeleteMessage}
