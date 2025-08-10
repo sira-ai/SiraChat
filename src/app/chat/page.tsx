@@ -1,15 +1,23 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import ChatPage from "@/components/sirachat/chat-page";
+import type { UserProfile } from "@/types";
 
-// This is the new route for the chat page.
-// In a real app, this would be a dynamic route like /chat/[id]
-// NOTE: This page component is primarily for enabling the route.
-// The actual display is handled within the main layout at the root page.
-export default function Chat() {
-  // We won't render the full page here anymore.
-  // The logic is now centralized in the main ChatListPage layout.
-  // This just ensures the URL is valid.
-  return null;
+export default function GlobalChatPage() {
+    const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+
+    useEffect(() => {
+        const storedUser = localStorage.getItem('sira-chat-user');
+        if (storedUser) {
+            setCurrentUser(JSON.parse(storedUser));
+        }
+    }, []);
+
+    if (!currentUser) {
+        return null; // Or a loading skeleton
+    }
+    
+    return <ChatPage isGlobal={true} currentUser={currentUser} />;
 }

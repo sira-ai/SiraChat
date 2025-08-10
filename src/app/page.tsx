@@ -3,30 +3,32 @@
 
 import { useState, useEffect } from 'react';
 import AuthPage from '@/components/sirachat/auth-page';
-import ChatListPage from '@/components/sirachat/chat-list-page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
-import { v4 as uuidv4 } from 'uuid';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     // Check for user profile in localStorage
     const storedUser = localStorage.getItem('sira-chat-user');
     if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
+      // If user exists, redirect to chat page
+      router.replace('/chat');
+    } else {
+        setIsLoading(false);
     }
-    setIsLoading(false);
-  }, []);
+  }, [router]);
 
   const handleLogin = async (username: string) => {
     setIsLoading(true);
 
-    const uid = `user_${username.toLowerCase().replace(/\s+/g, '_')}`; // Create a more robust UID
+    const uid = `user_${username.toLowerCase().replace(/\s+/g, '_')}`;
     const userRef = doc(db, 'users', uid);
     
     try {
@@ -34,31 +36,27 @@ export default function Home() {
       let userProfile: UserProfile;
 
       if (userSnap.exists()) {
-        // If profile exists in Firestore, use it as the source of truth
         userProfile = userSnap.data() as UserProfile;
       } else {
-        // If profile doesn't exist, create a new one
         userProfile = {
           uid: uid,
           username: username,
-          email: `${username.toLowerCase()}@sirachat.app`, // Dummy email
-          createdAt: new Date(), // Use client-side date for local object
+          email: `${username.toLowerCase()}@sirachat.app`,
+          createdAt: new Date(),
           avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
         };
-        // Save the new profile to Firestore
         await setDoc(userRef, {
             ...userProfile,
-            createdAt: serverTimestamp() // Use server timestamp when writing to DB
+            createdAt: serverTimestamp()
         });
       }
 
-      // Store the definitive profile in localStorage and state
       localStorage.setItem('sira-chat-user', JSON.stringify(userProfile));
       setCurrentUser(userProfile);
+      router.push('/chat');
 
     } catch (error) {
        console.error("Could not verify or create user profile in Firestore. Operating in offline mode.", error);
-       // Fallback for offline mode: create a local-only profile
        const localProfile: UserProfile = {
          uid: uid,
          username: username,
@@ -67,16 +65,11 @@ export default function Home() {
        };
        localStorage.setItem('sira-chat-user', JSON.stringify(localProfile));
        setCurrentUser(localProfile);
+       router.push('/chat');
     } finally {
         setIsLoading(false);
     }
   };
-
-
-  const handleLogout = () => {
-    localStorage.removeItem('sira-chat-user');
-    setCurrentUser(null);
-  }
 
   if (isLoading) {
     return (
@@ -90,9 +83,6 @@ export default function Home() {
     );
   }
 
-  return currentUser ? (
-    <ChatListPage currentUser={currentUser} onLogout={handleLogout} />
-  ) : (
-    <AuthPage onLogin={handleLogin} />
-  );
+  // If not loading and not redirected, show AuthPage
+  return <AuthPage onLogin={handleLogin} />;
 }
