@@ -13,7 +13,7 @@ import { Check, CheckCheck } from "lucide-react";
 type MessageItemProps = {
   message: Message;
   isCurrentUser: boolean;
-  onUserSelect: (sender: string) => void;
+  onUserSelect: (senderId: string) => void;
 };
 
 function formatTimestamp(timestamp: Message['timestamp']) {
@@ -24,7 +24,7 @@ function formatTimestamp(timestamp: Message['timestamp']) {
 
 
 export default function MessageItem({ message, isCurrentUser, onUserSelect }: MessageItemProps) {
-  const { text, sender, timestamp, imageUrl, stickerUrl } = message;
+  const { text, sender, senderId, timestamp, imageUrl, stickerUrl } = message;
 
   return (
     <div
@@ -34,7 +34,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect }: Me
       )}
     >
       {!isCurrentUser && (
-        <Button variant="ghost" className="p-0 h-10 w-10 self-start flex-shrink-0 rounded-full" onClick={() => onUserSelect(sender)}>
+        <Button variant="ghost" className="p-0 h-10 w-10 self-start flex-shrink-0 rounded-full" onClick={() => onUserSelect(senderId!)}>
             <Avatar className="h-10 w-10">
               <AvatarImage src={`https://placehold.co/100x100.png`} alt={sender}/>
               <AvatarFallback className="bg-accent text-accent-foreground">
@@ -86,4 +86,3 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect }: Me
     </div>
   );
 }
-

@@ -1,41 +1,57 @@
 
 "use client";
 
-import { useState } from 'react';
-import UsernameSetup from '@/components/sirachat/username-setup';
-import ChatListPage from '@/components/sirachat/chat-list-page'; // Changed component
+import { useState, useEffect } from 'react';
+import AuthPage from '@/components/sirachat/auth-page';
+import ChatListPage from '@/components/sirachat/chat-list-page';
 import { Skeleton } from '@/components/ui/skeleton';
-import useClientEffect from '@/hooks/use-client-effect'; // Custom hook for client-side only logic
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function Home() {
-  const [username, setUsername] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Custom hook to run localStorage logic only on the client
-  useClientEffect(() => {
-    const storedUsername = localStorage.getItem('sirachat_username');
-    if (storedUsername) {
-      setUsername(storedUsername);
-    }
-    setIsLoading(false);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in.
+        // Let's check if we have their profile in Firestore.
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          // If profile doesn't exist, create it.
+          // We'll use the part of the email before the @ as a default username.
+          const username = firebaseUser.email?.split('@')[0] || 'user';
+          await setDoc(userRef, {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            username: username,
+            createdAt: new Date(),
+          });
+        }
+        setUser(firebaseUser);
+      } else {
+        // User is signed out.
+        setUser(null);
+      }
+      setIsLoading(false);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
-  const handleUsernameSet = (newUsername: string) => {
-    try {
-      localStorage.setItem('sirachat_username', newUsername);
-      setUsername(newUsername);
-    } catch (error) {
-       console.error("Could not access localStorage", error);
-    }
-  };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
-      localStorage.removeItem('sirachat_username');
+      await auth.signOut();
+      // The onAuthStateChanged listener will handle setting user to null.
     } catch (error) {
-       console.error("Could not access localStorage", error);
+       console.error("Error signing out:", error);
     }
-    setUsername(null);
   }
 
   if (isLoading) {
@@ -50,10 +66,9 @@ export default function Home() {
     );
   }
 
-  return username ? (
-    // If logged in, show the new Chat List Page
-    <ChatListPage username={username} onLogout={handleLogout} />
+  return user ? (
+    <ChatListPage username={user.email || 'User'} onLogout={handleLogout} />
   ) : (
-    <UsernameSetup onUsernameSet={handleUsernameSet} />
+    <AuthPage />
   );
 }

@@ -24,6 +24,7 @@ import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Input } from "../ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import type { UserProfile } from "@/types";
 
 const formSchema = z.object({
   message: z.string().max(2000, "Pesan terlalu panjang."),
@@ -31,7 +32,7 @@ const formSchema = z.object({
 
 type MessageInputProps = {
   onSendMessage: (message: string, imageUrl?: string, stickerUrl?: string) => void;
-  currentUser: string | null;
+  currentUser: UserProfile | null;
 };
 
 const emojis = ['😀', '😂', '😍', '🤔', '😎', '😢', '😡', '👍', '👎', '🎉', '❤️', '🙏', '🚀', '🔥', '💡', '💯'];
@@ -73,7 +74,8 @@ export default function MessageInput({ onSendMessage, currentUser }: MessageInpu
   const updateTypingStatus = async (isTyping: boolean) => {
     if (!currentUser) return;
     try {
-      const typingRef = doc(db, "typingStatus", currentUser);
+      // Use username for typing status id
+      const typingRef = doc(db, "typingStatus", currentUser.username);
       await setDoc(typingRef, { isTyping, timestamp: new Date() });
     } catch (error) {
       console.error("Error updating typing status:", error);

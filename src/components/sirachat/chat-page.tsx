@@ -3,8 +3,9 @@
 
 import { useState, useEffect } from "react";
 import type { Message, UserProfile, TypingStatus } from "@/types";
-import { db } from "@/lib/firebase";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase"; // Import auth
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, setDoc } from "firebase/firestore";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
@@ -24,14 +25,32 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
    useEffect(() => {
-    const storedUsername = localStorage.getItem('sirachat_username');
-    if (storedUsername) {
-      setCurrentUser(storedUsername);
-    }
+    // Listen for auth state changes to get the current user
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          setCurrentUser(userSnap.data() as UserProfile);
+        } else {
+            // Fallback if user profile doesn't exist for some reason
+            const username = firebaseUser.email?.split('@')[0] || 'user';
+            const newUserProfile: UserProfile = {
+                uid: firebaseUser.uid,
+                username: username,
+                email: firebaseUser.email!
+            }
+            await setDoc(userRef, newUserProfile);
+            setCurrentUser(newUserProfile);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+    });
 
     const messagesQuery = query(collection(db, "messages"), orderBy("timestamp", "asc"));
     const messagesUnsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
@@ -55,11 +74,10 @@ export default function ChatPage() {
     const typingQuery = query(collection(db, "typingStatus"));
     const typingUnsubscribe = onSnapshot(typingQuery, (querySnapshot) => {
         const currentTypingUsers: string[] = [];
-        const localUsername = localStorage.getItem('sirachat_username');
         querySnapshot.forEach((doc) => {
             const data = doc.data() as TypingStatus;
             // Only add if user is typing and is not the current user
-            if (data.isTyping && doc.id !== localUsername) {
+            if (data.isTyping && doc.id !== currentUser?.username) {
                 currentTypingUsers.push(doc.id);
             }
         });
@@ -67,10 +85,11 @@ export default function ChatPage() {
     });
 
     return () => {
+      unsubscribeAuth();
       messagesUnsubscribe();
       typingUnsubscribe();
     }
-  }, []);
+  }, [currentUser?.username]);
 
   const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
     if (!currentUser) return;
@@ -78,7 +97,8 @@ export default function ChatPage() {
     try {
       await addDoc(collection(db, "messages"), {
         text: text,
-        sender: currentUser,
+        sender: currentUser.username, // Send username
+        senderId: currentUser.uid, // Also send UID
         timestamp: serverTimestamp(),
         imageUrl: imageUrl || null,
         stickerUrl: stickerUrl || null,
@@ -88,8 +108,12 @@ export default function ChatPage() {
     }
   };
   
-  const handleUserSelect = (sender: string) => {
-    setSelectedUser({ username: sender, avatarUrl: `https://placehold.co/100x100.png` });
+  const handleUserSelect = async (senderId: string) => {
+    const userRef = doc(db, 'users', senderId);
+    const userSnap = await getDoc(userRef);
+    if(userSnap.exists()){
+        setSelectedUser(userSnap.data() as UserProfile);
+    }
   }
 
   const getTypingIndicatorText = () => {
@@ -156,7 +180,7 @@ export default function ChatPage() {
             <Skeleton className="h-16 w-2/4 rounded-lg" />
           </div>
         ) : (
-          <MessageList messages={messages} currentUser={currentUser || ''} onUserSelect={handleUserSelect} />
+          <MessageList messages={messages} currentUser={currentUser || null} onUserSelect={handleUserSelect} />
         )}
       </div>
       <footer className="bg-transparent border-t-0 backdrop-blur-sm">

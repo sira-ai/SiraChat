@@ -2,14 +2,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { Message } from "@/types";
+import type { Message, UserProfile } from "@/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MessageItem from "./message-item";
 
 type MessageListProps = {
   messages: Message[];
-  currentUser: string;
-  onUserSelect: (sender: string) => void;
+  currentUser: UserProfile | null;
+  onUserSelect: (senderId: string) => void;
 };
 
 export default function MessageList({ messages, currentUser, onUserSelect }: MessageListProps) {
@@ -50,7 +50,7 @@ export default function MessageList({ messages, currentUser, onUserSelect }: Mes
                 <MessageItem
                 key={message.id}
                 message={message}
-                isCurrentUser={message.sender === currentUser}
+                isCurrentUser={message.senderId === currentUser?.uid}
                 onUserSelect={onUserSelect}
                 />
             ))}
