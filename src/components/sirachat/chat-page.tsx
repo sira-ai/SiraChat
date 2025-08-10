@@ -36,6 +36,7 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
           text: data.text,
           sender: data.sender,
           timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+          imageUrl: data.imageUrl,
         });
       });
       setMessages(msgs);
@@ -45,13 +46,14 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
     return () => unsubscribe();
   }, []);
 
-  const handleSendMessage = async (text: string) => {
-    if (text.trim() === '') return;
+  const handleSendMessage = async (text: string, imageUrl?: string) => {
+    if (text.trim() === '' && !imageUrl) return;
     try {
       await addDoc(collection(db, "messages"), {
         text: text,
         sender: username,
         timestamp: serverTimestamp(),
+        imageUrl: imageUrl || null,
       });
     } catch (error) {
       console.error("Error sending message: ", error);

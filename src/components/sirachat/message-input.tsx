@@ -12,17 +12,19 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { SendHorizonal, Smile, Image as ImageIcon, PlusCircle, Paperclip } from "lucide-react";
+import { SendHorizonal, Smile, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const formSchema = z.object({
   message: z.string().max(2000, "Pesan terlalu panjang."),
 });
 
 type MessageInputProps = {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, imageUrl?: string) => void;
 };
 
 const emojis = ['😀', '😂', '😍', '🤔', '😎', '😢', '😡', '👍', '👎', '🎉', '❤️', '🙏', '🚀', '🔥', '💡', '💯'];
@@ -38,7 +40,9 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
   });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (values.message.trim()) {
@@ -46,6 +50,43 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
       form.reset({ message: '' });
       textareaRef.current?.focus();
       adjustTextareaHeight();
+    }
+  }
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+        toast({
+            title: "File tidak valid",
+            description: "Silakan pilih file gambar.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    setIsUploading(true);
+    try {
+        const storageRef = ref(storage, `chat-images/${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        onSendMessage("", downloadURL);
+
+    } catch (error) {
+        console.error("Error uploading image: ", error);
+        toast({
+            title: "Gagal Mengunggah Gambar",
+            description: "Terjadi kesalahan saat mengunggah gambar Anda. Silakan coba lagi.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsUploading(false);
+        // Reset file input
+        if(fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
     }
   }
 
@@ -104,8 +145,9 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
             </PopoverContent>
         </Popover>
 
-        <Button variant="ghost" size="icon" className="flex-shrink-0" type="button" onClick={() => handleFeatureClick('kirim gambar')}>
-            <ImageIcon className="h-5 w-5" />
+        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+        <Button variant="ghost" size="icon" className="flex-shrink-0" type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+            {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
             <span className="sr-only">Kirim Gambar</span>
         </Button>
         <Button variant="ghost" size="icon" className="flex-shrink-0 hidden sm:inline-flex" type="button" onClick={() => handleFeatureClick('kirim stiker')}>
