@@ -8,12 +8,12 @@ import { getAuth } from "firebase/auth";
 // Your web app's Firebase configuration.
 // Hardcoded to ensure it's always available and prevent configuration errors.
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  "projectId": "sirachat",
+  "appId": "1:600267541023:web:ca1101b27fc02585efe32a",
+  "storageBucket": "sirachat.firebasestorage.app",
+  "apiKey": "AIzaSyC3_IgR7xCt32tMAkyRh2CxY4WbgFYQdSg",
+  "authDomain": "sirachat.firebaseapp.com",
+  "messagingSenderId": "600267541023"
 };
 
 
