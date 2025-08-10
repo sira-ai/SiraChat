@@ -13,7 +13,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, Sticker as StickerIcon, Search, History, ThumbsUp } from "lucide-react";
+import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, ThumbsUp, History, Search } from "lucide-react";
 import { useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Input } from "../ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 const formSchema = z.object({
   message: z.string().max(2000, "Pesan terlalu panjang."),
@@ -129,7 +130,6 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
   const handleEmojiSelect = (emoji: string) => {
     const currentMessage = form.getValues("message");
     form.setValue("message", currentMessage + emoji);
-    // Do not close the picker: setPickerOpen(false);
     textareaRef.current?.focus();
     setTimeout(adjustTextareaHeight, 0);
   }
@@ -141,6 +141,7 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
   }
 
   return (
+    <TooltipProvider>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col">
        <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
@@ -148,10 +149,17 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
             <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
                 
                 <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                        <Smile className="h-6 w-6" />
-                        <span className="sr-only">Pilih Emoji atau Stiker</span>
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                         <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                             <Smile className="h-6 w-6" />
+                             <span className="sr-only">Pilih Emoji atau Stiker</span>
+                         </Button>
+                      </TooltipTrigger>
+                       <TooltipContent side="top" align="center">
+                          <p>Emoji & Stiker</p>
+                      </TooltipContent>
+                    </Tooltip>
                 </PopoverTrigger>
 
                 <FormField
@@ -179,18 +187,25 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
 
                 <Popover open={isAttachmentPopoverOpen} onOpenChange={setAttachmentPopoverOpen}>
                     <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                            {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
-                            <span className="sr-only">Lampirkan File</span>
-                        </Button>
+                       <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                                {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
+                                <span className="sr-only">Lampirkan File</span>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" align="center">
+                          <p>Lampiran</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
+                    <PopoverContent align="end" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
                          <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
                              <ImageIcon className="h-8 w-8 mb-1" />
                              <span className="text-xs">Gambar</span>
                          </Button>
                          <Button variant="outline" className="flex flex-col h-20 w-20" disabled>
-                            <StickerIcon className="h-8 w-8 mb-1" />
+                            <DocumentIcon className="h-8 w-8 mb-1" />
                             <span className="text-xs">Dokumen</span>
                          </Button>
                     </PopoverContent>
@@ -257,7 +272,6 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
       </Popover>
       </form>
     </Form>
+    </TooltipProvider>
   );
 }
-
-    
