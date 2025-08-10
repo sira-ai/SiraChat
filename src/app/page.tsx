@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -9,7 +10,6 @@ import type { UserProfile } from '@/types';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -17,10 +17,11 @@ export default function Home() {
     // Check for user profile in localStorage
     const storedUser = localStorage.getItem('sira-chat-user');
     if (storedUser) {
-      // If user exists, redirect to chat page
+      // If user exists, redirect to chat page, but we don't stop loading until redirect is complete
       router.replace('/chat');
     } else {
-        setIsLoading(false);
+      // If no user, stop loading and show the auth page
+      setIsLoading(false);
     }
   }, [router]);
 
@@ -52,7 +53,6 @@ export default function Home() {
       }
 
       localStorage.setItem('sira-chat-user', JSON.stringify(userProfile));
-      setCurrentUser(userProfile);
       router.push('/chat');
 
     } catch (error) {
@@ -65,10 +65,11 @@ export default function Home() {
          avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
        };
        localStorage.setItem('sira-chat-user', JSON.stringify(localProfile));
-       setCurrentUser(localProfile);
        router.push('/chat');
     } finally {
-        setIsLoading(false);
+        // In case of error or if redirection takes time, we should eventually stop loading
+        // However, the redirect should handle the view change. If stuck, this might be adjusted.
+        // For now, redirection is the primary way to leave this page.
     }
   };
 
