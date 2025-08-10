@@ -8,3 +8,9 @@ export type Message = {
   imageUrl?: string;
   stickerUrl?: string;
 };
+
+export type UserProfile = {
+    username: string;
+    avatarUrl?: string;
+    status?: string;
+}

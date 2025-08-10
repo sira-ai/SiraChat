@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Message } from "@/types";
+import type { Message, UserProfile } from "@/types";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from "firebase/firestore";
 import MessageList from "./message-list";
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "../ui/skeleton";
+import UserProfileDialog from "./user-profile-dialog";
 
 type ChatPageProps = {
   username: string;
@@ -24,6 +25,7 @@ type ChatPageProps = {
 export default function ChatPage({ username, onLogout }: ChatPageProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
@@ -37,6 +39,7 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
           sender: data.sender,
           timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
           imageUrl: data.imageUrl,
+          stickerUrl: data.stickerUrl,
         });
       });
       setMessages(msgs);
@@ -46,21 +49,27 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
     return () => unsubscribe();
   }, []);
 
-  const handleSendMessage = async (text: string, imageUrl?: string) => {
-    if (text.trim() === '' && !imageUrl) return;
+  const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
+    if (text.trim() === '' && !imageUrl && !stickerUrl) return;
     try {
       await addDoc(collection(db, "messages"), {
         text: text,
         sender: username,
         timestamp: serverTimestamp(),
         imageUrl: imageUrl || null,
+        stickerUrl: stickerUrl || null,
       });
     } catch (error) {
       console.error("Error sending message: ", error);
     }
   };
+  
+  const handleUserSelect = (sender: string) => {
+    setSelectedUser({ username: sender });
+  }
 
   return (
+    <>
     <div className="flex h-screen w-screen flex-col bg-background">
       <header className="flex items-center justify-between border-b p-3 shadow-sm bg-card">
         <div className="flex items-center gap-3">
@@ -95,12 +104,14 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
             <Skeleton className="h-16 w-2/4" />
           </div>
         ) : (
-          <MessageList messages={messages} currentUser={username} />
+          <MessageList messages={messages} currentUser={username} onUserSelect={handleUserSelect} />
         )}
       </div>
       <footer className="border-t p-2 sm:p-4 bg-card/50">
         <MessageInput onSendMessage={handleSendMessage} />
       </footer>
     </div>
+    <UserProfileDialog user={selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)} />
+    </>
   );
 }

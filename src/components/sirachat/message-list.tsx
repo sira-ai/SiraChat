@@ -8,9 +8,10 @@ import MessageItem from "./message-item";
 type MessageListProps = {
   messages: Message[];
   currentUser: string;
+  onUserSelect: (sender: string) => void;
 };
 
-export default function MessageList({ messages, currentUser }: MessageListProps) {
+export default function MessageList({ messages, currentUser, onUserSelect }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
@@ -36,6 +37,7 @@ export default function MessageList({ messages, currentUser }: MessageListProps)
                 key={message.id}
                 message={message}
                 isCurrentUser={message.sender === currentUser}
+                onUserSelect={onUserSelect}
                 />
             ))}
             <div ref={scrollRef} />

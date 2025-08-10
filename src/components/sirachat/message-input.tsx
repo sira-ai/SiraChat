@@ -12,23 +12,34 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { SendHorizonal, Smile, Image as ImageIcon, Loader2 } from "lucide-react";
+import { SendHorizonal, Smile, Image as ImageIcon, Loader2, Sticker } from "lucide-react";
 import { useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import Image from "next/image";
 
 const formSchema = z.object({
   message: z.string().max(2000, "Pesan terlalu panjang."),
 });
 
 type MessageInputProps = {
-  onSendMessage: (message: string, imageUrl?: string) => void;
+  onSendMessage: (message: string, imageUrl?: string, stickerUrl?: string) => void;
 };
 
 const emojis = ['😀', '😂', '😍', '🤔', '😎', '😢', '😡', '👍', '👎', '🎉', '❤️', '🙏', '🚀', '🔥', '💡', '💯'];
-
+const stickers = [
+    '/stickers/sticker1.png',
+    '/stickers/sticker2.png',
+    '/stickers/sticker3.png',
+    '/stickers/sticker4.png',
+    '/stickers/sticker5.png',
+    '/stickers/sticker6.png',
+    '/stickers/sticker7.png',
+    '/stickers/sticker8.png',
+];
 
 export default function MessageInput({ onSendMessage }: MessageInputProps) {
   const { toast } = useToast();
@@ -42,6 +53,7 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [isStickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
   function onSubmit(values: z.infer<typeof formSchema>) {
@@ -72,7 +84,7 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
         const snapshot = await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(snapshot.ref);
         
-        onSendMessage("", downloadURL);
+        onSendMessage("", downloadURL, undefined);
 
     } catch (error) {
         console.error("Error uploading image: ", error);
@@ -83,7 +95,6 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
         });
     } finally {
         setIsUploading(false);
-        // Reset file input
         if(fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -114,46 +125,85 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
     setTimeout(adjustTextareaHeight, 0);
   }
 
-  const handleFeatureClick = (featureName: string) => {
-    toast({
-        title: "Fitur Segera Hadir",
-        description: `Fungsionalitas untuk ${featureName} sedang dalam pengembangan.`,
-        duration: 3000,
-    });
+  const handleStickerSelect = (stickerUrl: string) => {
+      onSendMessage("", undefined, stickerUrl);
+      setStickerPickerOpen(false);
   }
 
-
   return (
+    <TooltipProvider delayDuration={200}>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-1 sm:gap-2">
         
-        <Popover open={isEmojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
-            <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="flex-shrink-0">
-                    <Smile className="h-5 w-5" />
-                    <span className="sr-only">Pilih Emoji</span>
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto border-none bg-transparent shadow-none">
-                 <div className="grid grid-cols-4 gap-2 rounded-lg border bg-popover p-2 shadow-lg">
-                    {emojis.map(emoji => (
-                        <Button key={emoji} variant="ghost" size="icon" onClick={() => handleEmojiSelect(emoji)} className="text-xl">
-                            {emoji}
-                        </Button>
-                    ))}
-                </div>
-            </PopoverContent>
-        </Popover>
+        <Tooltip>
+            <Popover open={isEmojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+                <PopoverTrigger asChild>
+                    <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="flex-shrink-0">
+                        <Smile className="h-5 w-5" />
+                        <span className="sr-only">Pilih Emoji</span>
+                    </Button>
+                    </TooltipTrigger>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto border-none bg-transparent shadow-none p-0 mb-2">
+                     <div className="grid grid-cols-4 gap-2 rounded-lg border bg-popover p-2 shadow-lg w-full">
+                        {emojis.map(emoji => (
+                            <Button key={emoji} variant="ghost" size="icon" onClick={() => handleEmojiSelect(emoji)} className="text-xl">
+                                {emoji}
+                            </Button>
+                        ))}
+                    </div>
+                </PopoverContent>
+            </Popover>
+            <TooltipContent side="top" align="center">
+                <p>Emoji</p>
+            </TooltipContent>
+        </Tooltip>
+
 
         <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-        <Button variant="ghost" size="icon" className="flex-shrink-0" type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-            {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
-            <span className="sr-only">Kirim Gambar</span>
-        </Button>
-        <Button variant="ghost" size="icon" className="flex-shrink-0 hidden sm:inline-flex" type="button" onClick={() => handleFeatureClick('kirim stiker')}>
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 16.5a.5.5 0 0 1-1 0V9a1 1 0 0 0-1-1H4.5a.5.5 0 0 1 0-1H10a2 2 0 0 1 2 2v7.5Z"/><path d="M3 7.5a.5.5 0 0 1 1 0v9a1 1 0 0 0 1 1h8.5a.5.5 0 0 1 0 1H5a2 2 0 0 1-2-2Z"/></svg>
-            <span className="sr-only">Kirim Stiker</span>
-        </Button>
+        <Tooltip>
+            <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="flex-shrink-0" type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
+                <span className="sr-only">Kirim Gambar</span>
+            </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="center">
+                <p>Kirim Gambar</p>
+            </TooltipContent>
+        </Tooltip>
+        
+        <Tooltip>
+            <Popover open={isStickerPickerOpen} onOpenChange={setStickerPickerOpen}>
+                <PopoverTrigger asChild>
+                     <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="flex-shrink-0">
+                            <Sticker className="h-5 w-5" />
+                            <span className="sr-only">Pilih Stiker</span>
+                        </Button>
+                    </TooltipTrigger>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto border-none bg-transparent shadow-none p-0 mb-2">
+                     <div className="grid grid-cols-4 gap-2 rounded-lg border bg-popover p-4 shadow-lg w-[260px]">
+                        {stickers.map(sticker => (
+                            <Button 
+                                key={sticker} 
+                                variant="ghost" 
+                                className="h-auto p-1 aspect-square" 
+                                onClick={() => handleStickerSelect(sticker)}
+                            >
+                                <Image src={sticker} alt="Stiker" width={48} height={48} />
+                            </Button>
+                        ))}
+                    </div>
+                </PopoverContent>
+            </Popover>
+             <TooltipContent side="top" align="center">
+                <p>Kirim Stiker</p>
+            </TooltipContent>
+        </Tooltip>
+
 
         <FormField
           control={form.control}
@@ -181,5 +231,6 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
         </Button>
       </form>
     </Form>
+    </TooltipProvider>
   );
 }
