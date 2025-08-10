@@ -20,7 +20,7 @@ type ChatPageProps = {
 
 const initialMessages: Message[] = [
   { id: '1', text: 'Selamat datang di SiraChat! Ini adalah demo obrolan.', sender: 'SiraBot', timestamp: new Date().toISOString() },
-  { id: '2', text: 'Silakan kirim pesan. Balasan bersifat otomatis untuk demonstrasi.', sender: 'SiraBot', timestamp: new Date().toISOString() },
+  { id: '2', text: 'Sekarang Anda bisa mengirim emoji. Coba klik ikon senyum di input field!', sender: 'SiraBot', timestamp: new Date().toISOString() },
 ];
 
 
@@ -28,6 +28,7 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
 
   const handleSendMessage = (text: string) => {
+    if (text.trim() === '') return;
     const newMessage: Message = {
       id: Date.now().toString(),
       text,
@@ -42,7 +43,7 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
       const timeoutId = setTimeout(() => {
         const replyMessage: Message = {
           id: Date.now().toString(),
-          text: "Ini adalah balasan otomatis!",
+          text: "Ini adalah balasan otomatis! Fitur chat real-time akan segera hadir.",
           sender: "SiraBot",
           timestamp: new Date().toISOString(),
         };
@@ -83,7 +84,7 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
       <div className="flex-1 overflow-y-auto">
         <MessageList messages={messages} currentUser={username} />
       </div>
-      <footer className="border-t p-4 bg-card/50">
+      <footer className="border-t p-2 sm:p-4 bg-card/50">
         <MessageInput onSendMessage={handleSendMessage} />
       </footer>
     </div>
