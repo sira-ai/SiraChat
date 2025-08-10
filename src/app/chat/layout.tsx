@@ -39,11 +39,7 @@ export default function ChatLayout({
   }
 
   const handleChatSelect = (chatId: string) => {
-    if(chatId === 'global') {
-        router.push('/chat');
-    } else {
-        router.push(`/chat/${chatId}`);
-    }
+    router.push(chatId === 'global' ? '/chat/global' : `/chat/${chatId}`);
   };
 
   if (isLoading || !currentUser) {
@@ -73,38 +69,36 @@ export default function ChatLayout({
         </div>
     )
   }
-  
-  if (isMobile) {
-    return <main className="h-screen w-screen">{children}</main>
-  }
 
   return (
     <SidebarProvider>
-        <div className="flex h-screen w-screen bg-background">
-            <Sidebar className="w-full max-w-xs border-r">
-                <SidebarContent className="p-0">
-                    <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
-                </SidebarContent>
-                <SidebarFooter className="p-2">
-                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-card transition-colors">
-                        <Avatar className="h-10 w-10">
-                            <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
-                            <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                            <p className="font-bold truncate">{currentUser.username}</p>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={handleLogout}>
-                            <LogOut className="h-5 w-5" />
-                        </Button>
-                    </div>
-                </SidebarFooter>
-            </Sidebar>
+      <div className="flex h-screen w-screen bg-background">
+        {!isMobile && (
+          <Sidebar className="w-full max-w-xs border-r">
+              <SidebarContent className="p-0">
+                  <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
+              </SidebarContent>
+              <SidebarFooter className="p-2">
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-card transition-colors">
+                      <Avatar className="h-10 w-10">
+                          <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
+                          <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                          <p className="font-bold truncate">{currentUser.username}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={handleLogout}>
+                          <LogOut className="h-5 w-5" />
+                      </Button>
+                  </div>
+              </SidebarFooter>
+          </Sidebar>
+        )}
 
-            <main className="flex-1 h-screen">
-                 {children}
-            </main>
-        </div>
+        <main className="flex-1 h-screen">
+            {children}
+        </main>
+      </div>
     </SidebarProvider>
   );
 }
