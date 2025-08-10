@@ -8,7 +8,7 @@ import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timest
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Globe, User, PanelLeft } from "lucide-react";
+import { MoreVertical, Globe, User, PanelLeft, ArrowLeft } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,8 @@ import { Skeleton } from "../ui/skeleton";
 import UserProfileDialog from "./user-profile-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useSidebar } from "../ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
+import Link from "next/link";
 
 type ChatPageProps = {
   isGlobal?: boolean;
@@ -32,7 +34,8 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [chatPartner, setChatPartner] = useState<UserProfile | null>(null);
-  const { toggleSidebar, isMobile } = useSidebar();
+  const { toggleSidebar } = useSidebar();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!currentUser || (!isGlobal && !chatId)) {
@@ -220,7 +223,15 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
       <header className="flex items-center justify-between border-b p-3 shadow-sm bg-card">
         <div className="flex items-center gap-3">
             {isMobile && (
-              <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+              <Button variant="ghost" size="icon" asChild>
+                <Link href="/chat">
+                  <ArrowLeft className="h-6 w-6" />
+                  <span className="sr-only">Kembali ke daftar obrolan</span>
+                </Link>
+              </Button>
+            )}
+            {!isMobile && (
+              <Button variant="ghost" size="icon" onClick={toggleSidebar} className="md:hidden">
                 <PanelLeft className="h-6 w-6" />
                 <span className="sr-only">Buka Sidebar</span>
               </Button>

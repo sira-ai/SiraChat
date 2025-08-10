@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import ChatListPage from "@/components/sirachat/chat-list-page";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function ChatLayout({
   children,
@@ -20,6 +20,7 @@ export default function ChatLayout({
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const storedUser = localStorage.getItem('sira-chat-user');
@@ -71,6 +72,10 @@ export default function ChatLayout({
             </div>
         </div>
     )
+  }
+  
+  if (isMobile) {
+    return <main className="h-screen w-screen">{children}</main>
   }
 
   return (
