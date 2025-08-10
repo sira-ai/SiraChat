@@ -20,11 +20,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 const registerSchema = z.object({
-  username: z.string().trim().min(3, "Nama pengguna minimal 3 karakter.").max(20, "Nama pengguna maksimal 20 karakter."),
+  username: z.string().trim().min(3, "Nama pengguna minimal 3 karakter.").max(20, "Nama pengguna maksimal 20 karakter.").regex(/^[a-zA-Z0-9_]+$/, "Nama pengguna hanya boleh berisi huruf, angka, dan garis bawah."),
   email: z.string().email("Format email tidak valid."),
   password: z.string().min(6, "Kata sandi minimal 6 karakter."),
 });
@@ -52,10 +52,25 @@ export default function AuthPage() {
     async function onRegisterSubmit(values: z.infer<typeof registerSchema>) {
         setIsSubmitting(true);
         try {
+            // 1. Check if username is already taken
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("username", "==", values.username));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                toast({
+                    title: "Pendaftaran Gagal",
+                    description: "Nama pengguna sudah digunakan. Silakan pilih yang lain.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            // 2. If username is available, create user
             const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
             const user = userCredential.user;
 
-            // Save user profile to Firestore
+            // 3. Save user profile to Firestore
             await setDoc(doc(db, "users", user.uid), {
                 uid: user.uid,
                 username: values.username,
@@ -72,9 +87,16 @@ export default function AuthPage() {
 
         } catch (error: any) {
             console.error("Error registering:", error);
+            // Handle Firebase specific errors (e.g., email-already-in-use)
+            let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = "Alamat email ini sudah terdaftar. Silakan masuk atau gunakan email lain.";
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
             toast({
                 title: "Pendaftaran Gagal",
-                description: error.message || "Terjadi kesalahan. Silakan coba lagi.",
+                description: errorMessage,
                 variant: "destructive",
             });
         } finally {
