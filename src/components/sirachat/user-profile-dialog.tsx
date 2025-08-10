@@ -85,6 +85,15 @@ async function getCroppedImg(image: HTMLImageElement, crop: CropType, fileName: 
     });
 }
 
+function updateLocalUser(updatedData: Partial<UserProfile>) {
+    const storedUser = localStorage.getItem('sira-chat-user');
+    if (storedUser) {
+        const user = JSON.parse(storedUser) as UserProfile;
+        const newUser = { ...user, ...updatedData };
+        localStorage.setItem('sira-chat-user', JSON.stringify(newUser));
+    }
+}
+
 
 export default function UserProfileDialog({ user, isMyProfile, open = false, onOpenChange }: UserProfileDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -185,6 +194,8 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
 
         if (Object.keys(updates).length > 0) {
             await updateDoc(userRef, updates);
+            // Crucially, update localStorage after successful Firestore update
+            updateLocalUser(updates);
             toast({ title: "Profil berhasil diperbarui!" });
         }
 
