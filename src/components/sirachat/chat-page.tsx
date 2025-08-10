@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -57,7 +58,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
         };
       });
       setMessages(msgs);
-      setIsLoading(false);
+      // Don't set loading to false here yet, wait for chat partner info
     }, (error) => {
         console.error("Error fetching messages:", error);
         setIsLoading(false);
@@ -117,7 +118,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
       typingUnsubscribe();
       unsubscribeChat();
     }
-  }, [currentUser, isGlobal, chatId, chatPartner]);
+  }, [currentUser, isGlobal, chatId]);
 
   const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
     if (!currentUser || (!isGlobal && !chatId)) return;
@@ -179,7 +180,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
   const currentChatAvatar = isGlobal ? undefined : (chatPartner?.avatarUrl || 'https://placehold.co/100x100.png');
 
 
-  if (isLoading || !currentUser) {
+  if (isLoading || !currentUser || (!isGlobal && !chatPartner)) {
     return (
         <div className="flex h-screen w-full flex-col bg-background">
             <header className="flex items-center justify-between border-b p-3 shadow-sm bg-card h-[69px]">
@@ -261,3 +262,5 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
     </>
   );
 }
+
+    
