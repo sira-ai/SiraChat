@@ -1,3 +1,4 @@
+
 "use client";
 
 import { UserProfile } from "@/types";
@@ -7,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type UserProfileDialogProps = {
   user: UserProfile | null;
@@ -24,6 +25,7 @@ export default function UserProfileDialog({ user, onOpenChange }: UserProfileDia
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader className="items-center">
           <Avatar className="h-24 w-24 mb-4">
+             <AvatarImage src={user.avatarUrl} alt={user.username} />
             <AvatarFallback className="text-4xl bg-accent text-accent-foreground">
               {user.username.charAt(0).toUpperCase()}
             </AvatarFallback>
@@ -32,7 +34,7 @@ export default function UserProfileDialog({ user, onOpenChange }: UserProfileDia
         </DialogHeader>
         <div className="grid gap-4 py-4">
             <p className="text-center text-sm text-muted-foreground">
-                Fitur profil lengkap akan segera hadir!
+                Profil lengkap akan segera tersedia.
             </p>
         </div>
       </DialogContent>

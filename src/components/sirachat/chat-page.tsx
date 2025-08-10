@@ -18,7 +18,7 @@ import {
 import { Skeleton } from "../ui/skeleton";
 import UserProfileDialog from "./user-profile-dialog";
 import Link from "next/link";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 // This is now a generic chat page, not tied to the main user
 export default function ChatPage() {
@@ -73,13 +73,15 @@ export default function ChatPage() {
   };
   
   const handleUserSelect = (sender: string) => {
-    setSelectedUser({ username: sender });
+    // In a group chat, you might fetch profile info from a 'users' collection
+    setSelectedUser({ username: sender, avatarUrl: `https://placehold.co/100x100.png` });
   }
 
-  // Placeholder for the person you are chatting with
-  const chatPartner = {
-    username: "Ibra Decode",
-    status: "online"
+  // Placeholder for the chat you are in. In a real app this would be dynamic.
+  const currentChat = {
+    name: "YAPPING ||",
+    members: 10,
+    avatar: 'https://placehold.co/100x100.png'
   }
 
   return (
@@ -89,39 +91,42 @@ export default function ChatPage() {
         <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild>
               <Link href="/">
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-6 w-6" />
               </Link>
             </Button>
             <Avatar className="h-10 w-10">
+              <AvatarImage src={currentChat.avatar} alt={currentChat.name} />
               <AvatarFallback className="bg-primary text-primary-foreground">
-                {chatPartner.username.charAt(0).toUpperCase()}
+                {currentChat.name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-lg font-bold font-headline text-foreground leading-tight">{chatPartner.username}</h1>
-              <p className="text-sm text-primary">{chatPartner.status}</p>
+              <h1 className="text-lg font-bold font-headline text-foreground leading-tight">{currentChat.name}</h1>
+              <p className="text-sm text-muted-foreground">{currentChat.members} anggota</p>
             </div>
         </div>
         <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-5 w-5" />
+                  <MoreVertical className="h-6 w-6" />
                   <span className="sr-only">Buka menu</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {/* Menu items can go here later */}
+                {/* Menu items can go here later, e.g. "Lihat Info Grup", "Bisukan", etc. */}
+                <DropdownMenuItem>Info Grup</DropdownMenuItem>
+                <DropdownMenuItem>Keluar Grup</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
         </div>
       </header>
-      <div className="flex-1 overflow-y-auto bg-card/25">
+      <div className="flex-1 overflow-y-auto" style={{backgroundImage: "url('/chat-bg.png')", backgroundSize: '300px', backgroundRepeat: 'repeat'}}>
         {isLoading ? (
           <div className="p-4 space-y-4">
-            <Skeleton className="h-16 w-3/4" />
-            <Skeleton className="h-16 w-3/4 ml-auto" />
-            <Skeleton className="h-16 w-2/4" />
+            <Skeleton className="h-16 w-3/4 rounded-lg" />
+            <Skeleton className="h-20 w-3/4 ml-auto rounded-lg" />
+            <Skeleton className="h-16 w-2/4 rounded-lg" />
           </div>
         ) : (
           <MessageList messages={messages} currentUser={currentUser || ''} onUserSelect={handleUserSelect} />
