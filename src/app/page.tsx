@@ -7,7 +7,7 @@ import ChatListPage from '@/components/sirachat/chat-list-page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
 
@@ -34,11 +34,14 @@ export default function Home() {
             uid: firebaseUser.uid,
             email: firebaseUser.email!,
             username: username,
-            createdAt: new Date(),
+            createdAt: serverTimestamp() as unknown as Date,
             avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
           };
           await setDoc(userRef, newUserProfile);
-          userProfile = newUserProfile;
+          
+          // Re-fetch to get the server-generated timestamp correctly
+          const freshUserSnap = await getDoc(userRef);
+          userProfile = freshUserSnap.data() as UserProfile;
         }
         setCurrentUser(userProfile);
       } else {

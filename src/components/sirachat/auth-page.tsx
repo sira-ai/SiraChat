@@ -103,6 +103,8 @@ export default function AuthPage() {
             } else if (error.code === 'auth/invalid-email') {
                 errorMessage = "Format email tidak valid.";
                 registerForm.setError("email", { type: "manual", message: errorMessage });
+            } else {
+                errorMessage = "Gagal mendaftar. Periksa kembali detail Anda.";
             }
             toast({
                 title: "Pendaftaran Gagal",

@@ -91,7 +91,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
       });
       setMessages(msgs);
       // We set loading to false here, after the first batch of messages is loaded
-      setIsLoading(false);
+      if (isLoading) setIsLoading(false);
     }, (error) => {
         console.error("Error fetching messages:", error);
         setIsLoading(false);
@@ -99,7 +99,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
 
     // Listen for typing status changes
     let typingUnsubscribe = () => {};
-    if (!isGlobal && chatId) {
+    if (!isGlobal && chatId && currentUser) {
         const typingRef = doc(db, "typingStatus", chatId);
         typingUnsubscribe = onSnapshot(typingRef, (doc) => {
             const data = doc.data() as TypingStatus | undefined;
@@ -118,7 +118,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
 
     // If this is a private chat, fetch the other user's profile
     let unsubscribeChat = () => {};
-    if (!isGlobal && chatId) {
+    if (!isGlobal && chatId && currentUser) {
         const chatRef = doc(db, 'chats', chatId);
         unsubscribeChat = onSnapshot(chatRef, async (chatSnap) => {
             if(chatSnap.exists()){
@@ -154,7 +154,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
       typingUnsubscribe();
       unsubscribeChat();
     }
-  }, [currentUser, isGlobal, chatId, chatPartner, isLoading]);
+  }, [currentUser, isGlobal, chatId, isLoading]);
 
   const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
     if (!currentUser || (!isGlobal && !chatId)) return;
@@ -175,8 +175,17 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
       // Update last message on the chat doc for private chats
       if (!isGlobal && chatId) {
           const chatRef = doc(db, "chats", chatId);
+          let lastMessageText = "";
+          if (text) {
+              lastMessageText = text.length > 30 ? text.substring(0, 30) + "..." : text;
+          } else if (imageUrl) {
+              lastMessageText = "Gambar";
+          } else if (stickerUrl) {
+              lastMessageText = "Stiker";
+          }
+          
           await updateDoc(chatRef, {
-              lastMessage: text ? (text.length > 30 ? text.substring(0, 30) + "..." : text) : (imageUrl ? "Gambar" : "Stiker"),
+              lastMessage: lastMessageText,
               lastMessageTimestamp: serverTimestamp()
           });
       }
@@ -187,7 +196,7 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
   };
   
   const handleUserSelect = async (senderId: string) => {
-    if(!senderId) return;
+    if(!senderId || !isGlobal && senderId === currentUser?.uid) return;
     const userRef = doc(db, 'users', senderId);
     const userSnap = await getDoc(userRef);
     if(userSnap.exists()){
@@ -269,8 +278,8 @@ export default function ChatPage({ isGlobal = false, chatId }: ChatPageProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleUserSelect(chatPartner?.uid!)}>Info Kontak</DropdownMenuItem>
-                <DropdownMenuItem>Blokir</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleUserSelect(chatPartner?.uid!)} disabled={isGlobal}>Info Kontak</DropdownMenuItem>
+                <DropdownMenuItem disabled={isGlobal}>Blokir</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
         </div>

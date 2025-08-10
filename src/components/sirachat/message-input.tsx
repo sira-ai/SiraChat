@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast";
 import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Input } from "../ui/input";
@@ -106,7 +106,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId }: Mes
     return () => {
       clearTimeout(typingTimer);
       // Clean up typing status on component unmount
-      if (currentUser) {
+      if (currentUser && chatId) {
           updateTypingStatus(false);
       }
     };
@@ -119,7 +119,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId }: Mes
       onSendMessage(values.message);
       form.reset({ message: '' });
       textareaRef.current?.focus();
-      if (currentUser) updateTypingStatus(false);
+      if (currentUser && chatId) updateTypingStatus(false);
       clearTimeout(typingTimer);
       setTimeout(adjustTextareaHeight, 0);
     }

@@ -45,7 +45,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
             </Avatar>
         </Button>
       )}
-      <div className={cn("max-w-sm md:max-w-md flex flex-col p-1.5", 
+      <div className={cn("max-w-sm md:max-w-md flex flex-col", 
           isCurrentUser ? "" : "items-start"
       )}>
         <div className={cn(
@@ -61,7 +61,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
           ) : (
             <>
               {!isCurrentUser && (
-                <p className="text-sm font-bold text-accent px-2.5 pt-2">{sender}</p>
+                <p className="text-sm font-bold text-accent px-2.5 pt-2 cursor-pointer" onClick={() => onUserSelect(senderId!)}>{sender}</p>
               )}
               {imageUrl && (
                   <div className="relative aspect-video w-64 my-1">

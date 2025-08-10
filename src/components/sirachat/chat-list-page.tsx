@@ -79,6 +79,9 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
       }
       setChats(chatsData);
       setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching chats: ", error);
+        setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -103,10 +106,17 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
 
   const handleCreateOrOpenChat = async (partner: UserProfile) => {
     setIsNewChatDialogOpen(false);
+    
+    // Sort UIDs to create a consistent ID for the 1-on-1 chat
+    const sortedMembers = [currentUser.uid, partner.uid].sort();
+    const chatId = sortedMembers.join('_');
+
+    const chatRef = doc(db, "chats", chatId);
     const chatsRef = collection(db, "chats");
     // Query to find if a chat already exists between the two users
+    // This is a more robust way to check for existing chats
     const q = query(chatsRef, 
-        where('members', '==', [currentUser.uid, partner.uid].sort())
+        where('members', '==', sortedMembers)
     );
 
     const querySnapshot = await getDocs(q);
@@ -118,7 +128,7 @@ export default function ChatListPage({ currentUser, onLogout }: ChatListPageProp
     } else {
       // Chat doesn't exist, create it
       const newChatRef = await addDoc(chatsRef, {
-        members: [currentUser.uid, partner.uid].sort(),
+        members: sortedMembers,
         memberProfiles: {
           [currentUser.uid]: {
             username: currentUser.username,

@@ -46,7 +46,7 @@ export default function MessageList({ messages, currentUser, chatPartner, onUser
 
   return (
     <ScrollArea className="h-full w-full p-4" viewportRef={viewportRef}>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-4">
             {messages.map((message) => (
                 <MessageItem
                 key={message.id}
