@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useSidebar } from "../ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type ChatPageProps = {
   isGlobal?: boolean;
@@ -32,10 +33,13 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [isMyProfile, setIsMyProfile] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [chatPartner, setChatPartner] = useState<UserProfile | null>(null);
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
+  const router = useRouter();
+
 
   useEffect(() => {
     if (!currentUser || (!isGlobal && !chatId)) {
@@ -165,20 +169,28 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
   };
   
   const handleUserSelect = useCallback(async (senderId: string) => {
-    if(!senderId || !isGlobal && senderId === currentUser?.uid) {
+      if (!currentUser) return;
+      
+      const isMyProfileSelected = !senderId || senderId === currentUser.uid;
+      setIsMyProfile(isMyProfileSelected);
+
+      const targetId = isMyProfileSelected ? currentUser.uid : senderId;
+
+      if (!isGlobal && !isMyProfileSelected && targetId === chatPartner?.uid) {
         setSelectedUser(chatPartner);
         return;
-    }
-    try {
-      const userRef = doc(db, 'users', senderId);
-      const userSnap = await getDoc(userRef);
-      if(userSnap.exists()){
-          setSelectedUser(userSnap.data() as UserProfile);
       }
-    } catch (e) {
-      console.error("Could not fetch user profile, possibly offline.", e);
-    }
-  }, [isGlobal, currentUser, chatPartner]);
+      
+      try {
+        const userRef = doc(db, 'users', targetId);
+        const userSnap = await getDoc(userRef);
+        if(userSnap.exists()){
+            setSelectedUser(userSnap.data() as UserProfile);
+        }
+      } catch (e) {
+        console.error("Could not fetch user profile, possibly offline.", e);
+      }
+    }, [isGlobal, currentUser, chatPartner]);
 
   const getTypingIndicatorText = () => {
     if (typingUsers.length > 0) {
@@ -277,7 +289,13 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
         <MessageInput onSendMessage={handleSendMessage} currentUser={currentUser} chatId={chatId} isGlobal={isGlobal} />
       </footer>
     </div>
-    <UserProfileDialog user={selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)} />
+    <UserProfileDialog 
+        user={selectedUser} 
+        isMyProfile={isMyProfile}
+        onOpenChange={(open) => !open && setSelectedUser(null)} 
+    />
     </>
   );
 }
+
+    
