@@ -6,8 +6,11 @@ import React from 'react';
 
 // This is a dynamic route for private chats
 // The [id] will be the chat room ID
+// NOTE: This page component is primarily for enabling the route.
+// The actual display is handled within the main layout at the root page.
 export default function PrivateChat({ params }: { params: { id: string } }) {
-  // Accessing params.id directly is the stable way in this client component.
-  // The previous use of React.use was incorrect and caused a promise-related error.
-  return <ChatPage chatId={params.id} />;
+  // We won't render the full page here anymore.
+  // The logic is now centralized in the main ChatListPage layout.
+  // This just ensures the URL is valid.
+  return null;
 }
