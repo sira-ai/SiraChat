@@ -9,6 +9,7 @@ import ChatPage from "./chat-page";
 import ChatListContent from "./chat-list-content";
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
+import { Button } from "@/components/ui/button";
 
 type ChatLayoutProps = {
   currentUser: UserProfile;
