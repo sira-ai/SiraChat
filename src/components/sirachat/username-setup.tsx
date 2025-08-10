@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { User } from "lucide-react";
 
 const formSchema = z.object({
-  username: z.string().trim().min(3, "Username must be at least 3 characters.").max(20, "Username must be at most 20 characters."),
+  username: z.string().trim().min(3, "Nama pengguna minimal 3 karakter.").max(20, "Nama pengguna maksimal 20 karakter."),
 });
 
 type UsernameSetupProps = {
@@ -43,9 +43,9 @@ export default function UsernameSetup({ onUsernameSet }: UsernameSetupProps) {
           <div className="mx-auto bg-primary/20 p-3 rounded-full w-fit">
             <User className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="mt-4 text-2xl font-bold font-headline">Welcome to SiraChat</CardTitle>
+          <CardTitle className="mt-4 text-2xl font-bold font-headline">Selamat Datang di SiraChat</CardTitle>
           <CardDescription>
-            Set your display name to start chatting.
+            Tentukan nama tampilan Anda untuk mulai mengobrol.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -56,22 +56,22 @@ export default function UsernameSetup({ onUsernameSet }: UsernameSetupProps) {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Display Name</FormLabel>
+                    <FormLabel>Nama Tampilan</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your name" {...field} />
+                      <Input placeholder="Masukkan nama Anda" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <Button type="submit" className="w-full">
-                Start Chatting
+                Mulai Mengobrol
               </Button>
             </form>
           </Form>
         </CardContent>
         <CardFooter>
-          <p className="text-xs text-muted-foreground text-center w-full">No account needed. Just pick a name and start!</p>
+          <p className="text-xs text-muted-foreground text-center w-full">Tidak perlu akun. Cukup pilih nama dan mulai!</p>
         </CardFooter>
       </Card>
     </main>

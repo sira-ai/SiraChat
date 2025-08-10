@@ -19,8 +19,8 @@ type ChatPageProps = {
 };
 
 const initialMessages: Message[] = [
-  { id: '1', text: 'Welcome to SiraChat! This is a demo chat.', sender: 'SiraBot', timestamp: new Date().toISOString() },
-  { id: '2', text: 'Feel free to send messages. Replies are automated for demonstration.', sender: 'SiraBot', timestamp: new Date().toISOString() },
+  { id: '1', text: 'Selamat datang di SiraChat! Ini adalah demo obrolan.', sender: 'SiraBot', timestamp: new Date().toISOString() },
+  { id: '2', text: 'Silakan kirim pesan. Balasan bersifat otomatis untuk demonstrasi.', sender: 'SiraBot', timestamp: new Date().toISOString() },
 ];
 
 
@@ -42,7 +42,7 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
       const timeoutId = setTimeout(() => {
         const replyMessage: Message = {
           id: Date.now().toString(),
-          text: "This is an automated reply!",
+          text: "Ini adalah balasan otomatis!",
           sender: "SiraBot",
           timestamp: new Date().toISOString(),
         };
@@ -63,18 +63,18 @@ export default function ChatPage({ username, onLogout }: ChatPageProps) {
             <h1 className="text-xl font-bold font-headline text-foreground">SiraChat</h1>
         </div>
         <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground hidden sm:inline">Welcome, <span className="font-bold text-foreground">{username}</span></span>
+            <span className="text-sm text-muted-foreground hidden sm:inline">Selamat datang, <span className="font-bold text-foreground">{username}</span></span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <MoreVertical className="h-5 w-5" />
-                  <span className="sr-only">Open menu</span>
+                  <span className="sr-only">Buka menu</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onLogout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Change Name</span>
+                  <span>Ganti Nama</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

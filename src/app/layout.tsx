@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: 'SiraChat',
-  description: 'Real-time messaging application',
+  description: 'Aplikasi perpesanan real-time',
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="id" className="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

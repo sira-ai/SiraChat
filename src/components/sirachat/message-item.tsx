@@ -4,6 +4,7 @@ import type { Message } from "@/types";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format, isToday, isYesterday } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 type MessageItemProps = {
   message: Message;
@@ -13,12 +14,12 @@ type MessageItemProps = {
 function formatTimestamp(timestamp: string) {
     const date = new Date(timestamp);
     if(isToday(date)) {
-        return format(date, 'p');
+        return format(date, 'p', { locale: id });
     }
     if(isYesterday(date)) {
-        return `Yesterday at ${format(date, 'p')}`;
+        return `Kemarin pukul ${format(date, 'p', { locale: id })}`;
     }
-    return format(date, 'MMM d, yyyy, p');
+    return format(date, 'd MMM yyyy, p', { locale: id });
 }
 
 

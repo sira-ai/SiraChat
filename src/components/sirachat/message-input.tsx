@@ -16,7 +16,7 @@ import { SendHorizonal } from "lucide-react";
 import { useRef } from "react";
 
 const formSchema = z.object({
-  message: z.string().min(1, "Message cannot be empty.").max(1000, "Message is too long."),
+  message: z.string().min(1, "Pesan tidak boleh kosong.").max(1000, "Pesan terlalu panjang."),
 });
 
 type MessageInputProps = {
@@ -58,7 +58,7 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
             <FormItem className="flex-1">
               <FormControl>
                 <Textarea
-                  placeholder="Type a message..."
+                  placeholder="Ketik pesan..."
                   className="resize-none min-h-[40px] max-h-40"
                   rows={1}
                   onKeyDown={handleKeyDown}
@@ -77,7 +77,7 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
         />
         <Button type="submit" size="icon" disabled={!form.formState.isValid || form.formState.isSubmitting} className="h-10 w-10 flex-shrink-0">
           <SendHorizonal className="h-5 w-5" />
-          <span className="sr-only">Send Message</span>
+          <span className="sr-only">Kirim Pesan</span>
         </Button>
       </form>
     </Form>
