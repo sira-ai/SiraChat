@@ -6,8 +6,9 @@ export type Message = {
   sender: string; // username
   senderId?: string; // UID
   timestamp: Timestamp | Date | string; // Allow multiple types for flexibility
-  imageUrl?: string;
-  stickerUrl?: string;
+  attachmentUrl?: string;
+  attachmentType?: 'image' | 'file';
+  fileName?: string;
 };
 
 export type UserProfile = {

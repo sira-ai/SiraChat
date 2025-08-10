@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Message, UserProfile, TypingStatus, Chat } from "@/types";
 import { db } from "@/lib/firebase"; 
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc } from "firebase/firestore";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
@@ -53,12 +53,12 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
           sender: data.sender,
           senderId: data.senderId,
           timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
-          imageUrl: data.imageUrl,
-          stickerUrl: data.stickerUrl,
+          attachmentUrl: data.attachmentUrl,
+          attachmentType: data.attachmentType,
+          fileName: data.fileName,
         };
       });
       setMessages(msgs);
-      // Don't set loading to false here yet, wait for chat partner info
     }, (error) => {
         console.error("Error fetching messages:", error);
         setIsLoading(false);
@@ -120,27 +120,35 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
     }
   }, [currentUser, isGlobal, chatId]);
 
-  const handleSendMessage = async (text: string, imageUrl?: string, stickerUrl?: string) => {
+  const handleSendMessage = async (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => {
     if (!currentUser || (!isGlobal && !chatId)) return;
-    if (text.trim() === '' && !imageUrl && !stickerUrl) return;
+    if (message.trim() === '' && !attachmentUrl) return;
 
     const messagesCollectionPath = isGlobal ? "messages" : `chats/${chatId}/messages`;
     
     try {
       await addDoc(collection(db, messagesCollectionPath), {
-        text: text || "",
+        text: message || "",
         sender: currentUser.username,
         senderId: currentUser.uid,
         timestamp: serverTimestamp(),
-        imageUrl: imageUrl || null,
-        stickerUrl: stickerUrl || null,
+        attachmentUrl: attachmentUrl || null,
+        attachmentType: attachmentType || null,
+        fileName: fileName || null,
       });
 
       if (!isGlobal && chatId) {
           const chatRef = doc(db, "chats", chatId);
-          let lastMessageText = text ? (text.length > 30 ? text.substring(0, 30) + "..." : text) 
-                                : imageUrl ? "Gambar" 
-                                : "Stiker";
+          let lastMessageText;
+          if (message) {
+              lastMessageText = message.length > 30 ? message.substring(0, 30) + "..." : message;
+          } else if (attachmentType === 'image') {
+              lastMessageText = "Gambar";
+          } else if (attachmentType === 'file') {
+              lastMessageText = "Dokumen";
+          } else {
+              lastMessageText = "Lampiran";
+          }
           
           await updateDoc(chatRef, {
               lastMessage: lastMessageText,
@@ -262,5 +270,3 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
     </>
   );
 }
-
-    

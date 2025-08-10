@@ -13,45 +13,33 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, ThumbsUp, History, Search } from "lucide-react";
+import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, X } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { db, storage } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import Image from "next/image";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Input } from "../ui/input";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import type { UserProfile } from "@/types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import Picker from '@emoji-mart/react';
+import { Progress } from "../ui/progress";
 
 const formSchema = z.object({
   message: z.string().max(2000, "Pesan terlalu panjang."),
 });
 
 type MessageInputProps = {
-  onSendMessage: (message: string, imageUrl?: string, stickerUrl?: string) => void;
+  onSendMessage: (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => void;
   currentUser: UserProfile | null;
   chatId?: string;
   isGlobal?: boolean;
 };
 
-const emojis = ['😀', '😂', '😍', '🤔', '😎', '😢', '😡', '👍', '👎', '🎉', '❤️', '🙏', '🚀', '🔥', '💡', '💯'];
-const stickers = [
-    '/stickers/sticker1.png',
-    '/stickers/sticker2.png',
-    '/stickers/sticker3.png',
-    '/stickers/sticker4.png',
-    '/stickers/sticker5.png',
-    '/stickers/sticker6.png',
-    '/stickers/sticker7.png',
-    '/stickers/sticker8.png',
-    '/stickers/sticker9.png',
-    '/stickers/sticker10.png',
-    '/stickers/sticker11.png',
-    '/stickers/sticker12.png',
-];
+type UploadProgress = {
+    progress: number;
+    fileName: string;
+}
 
 // Debounce timer for typing indicator
 let typingTimer: NodeJS.Timeout;
@@ -69,7 +57,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPickerOpen, setPickerOpen] = useState(false);
   const [isAttachmentPopoverOpen, setAttachmentPopoverOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [upload, setUpload] = useState<UploadProgress | null>(null);
   const hasText = !!form.watch("message");
 
   // Typing indicator logic
@@ -78,7 +66,6 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
     if (isGlobal || !currentUser || !chatId) return;
     try {
       const typingRef = doc(db, "typingStatus", chatId);
-      // We use dot notation to update a specific field in the map
       const updateData = {
         [`${currentUser.uid}`]: {
           isTyping,
@@ -86,7 +73,6 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
           timestamp: serverTimestamp(),
         }
       }
-      // Use set with merge to create/update the document
       await setDoc(typingRef, updateData, { merge: true });
     } catch (error) {
       console.error("Error updating typing status:", error);
@@ -107,12 +93,10 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
   useEffect(() => {
     return () => {
       clearTimeout(typingTimer);
-      // Clean up typing status on component unmount
       if (currentUser && chatId && !isGlobal) {
           updateTypingStatus(false);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, chatId, isGlobal]);
 
 
@@ -127,37 +111,48 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
     }
   }
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-        toast({
-            title: "File tidak valid",
-            description: "Silakan pilih file gambar.",
-            variant: "destructive",
-        });
-        return;
-    }
-
-    setIsUploading(true);
+    setUpload({ progress: 0, fileName: file.name });
     setAttachmentPopoverOpen(false); // Close popover on selection
+
     try {
-        const storageRef = ref(storage, `chat-images/${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        
-        onSendMessage("", downloadURL, undefined);
+        const fileType = file.type.startsWith("image/") ? 'image' : 'file';
+        const storageRef = ref(storage, `chat-attachments/${Date.now()}_${file.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUpload({ progress, fileName: file.name });
+            },
+            (error) => {
+                console.error("Error uploading file: ", error);
+                toast({
+                    title: "Gagal Mengunggah File",
+                    description: "Terjadi kesalahan saat mengunggah file Anda. Silakan coba lagi.",
+                    variant: "destructive",
+                });
+                setUpload(null);
+            },
+            async () => {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                onSendMessage("", downloadURL, fileType, file.name);
+                setUpload(null);
+            }
+        );
 
     } catch (error) {
-        console.error("Error uploading image: ", error);
+        console.error("Error uploading file: ", error);
         toast({
-            title: "Gagal Mengunggah Gambar",
-            description: "Terjadi kesalahan saat mengunggah gambar Anda. Silakan coba lagi.",
+            title: "Gagal Mengunggah File",
+            description: "Terjadi kesalahan yang tidak terduga.",
             variant: "destructive",
         });
+        setUpload(null);
     } finally {
-        setIsUploading(false);
         if(fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -175,93 +170,57 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
-        if (form.getValues("message").trim()) {
+        if (form.getValues("message").trim() && !upload) {
           form.handleSubmit(onSubmit)();
         }
     }
   }
   
-  const handleEmojiSelect = (emoji: string) => {
+  const handleEmojiSelect = (emoji: any) => {
     const currentMessage = form.getValues("message");
-    form.setValue("message", currentMessage + emoji);
+    form.setValue("message", currentMessage + emoji.native);
     textareaRef.current?.focus();
     setTimeout(adjustTextareaHeight, 0);
   }
 
-  const handleStickerSelect = (stickerUrl: string) => {
-      onSendMessage("", undefined, stickerUrl);
-      setPickerOpen(false);
-  }
-
   return (
     <TooltipProvider>
+      {upload && (
+        <div className="p-2 pt-0">
+          <div className="bg-muted p-2 rounded-lg text-sm">
+            <div className="flex justify-between items-center mb-1">
+              <p className="truncate font-medium text-foreground">{upload.fileName}</p>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setUpload(null)}>
+                  <X className="h-4 w-4"/>
+              </Button>
+            </div>
+            <Progress value={upload.progress} className="h-2" />
+          </div>
+        </div>
+      )}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2 p-2">
           <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
             
             <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                      <Smile className="h-6 w-6" />
-                      <span className="sr-only">Pilih Emoji atau Stiker</span>
-                    </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="center">
-                  <p>Emoji & Stiker</p>
-                </TooltipContent>
-              </Tooltip>
-              <PopoverContent className="w-[calc(100vw-16px)] sm:w-[400px] h-[350px] p-0 mb-2 border-none bg-transparent shadow-none">
-                <Tabs defaultValue="emoji" className="h-full w-full bg-card rounded-lg flex flex-col">
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <TabsContent value="emoji" className="mt-0">
-                      <div className="grid grid-cols-8 gap-2">
-                        {emojis.map(emoji => (
-                          <Button key={emoji} variant="ghost" size="icon" onClick={() => handleEmojiSelect(emoji)} className="text-2xl">
-                            {emoji}
-                          </Button>
-                        ))}
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="gif" className="mt-0 flex flex-col items-center justify-center h-full text-muted-foreground">
-                        <p className="text-lg">Fitur GIF</p>
-                        <p>Segera Hadir!</p>
-                    </TabsContent>
-                    <TabsContent value="sticker" className="mt-0 space-y-4">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input placeholder="Cari stiker..." className="pl-10 bg-background" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><History className="h-4 w-4" />Terakhir Digunakan</h3>
-                        <div className="grid grid-cols-5 gap-2">
-                          {stickers.slice(0, 5).map(sticker => (
-                            <Button key={sticker} variant="ghost" className="h-auto p-1 aspect-square bg-background" onClick={() => handleStickerSelect(sticker)}>
-                              <Image src={sticker} alt="Stiker" width={64} height={64} />
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><ThumbsUp className="h-4 w-4" />Stiker Trending</h3>
-                        <div className="grid grid-cols-5 gap-2">
-                          {stickers.map(sticker => (
-                            <Button key={sticker} variant="ghost" className="h-auto p-1 aspect-square bg-background" onClick={() => handleStickerSelect(sticker)}>
-                              <Image src={sticker} alt="Stiker" width={64} height={64} />
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    </TabsContent>
-                  </div>
-                  <TabsList className="grid w-full grid-cols-3 rounded-t-none h-12">
-                    <TabsTrigger value="emoji" className="h-full text-base">Emoji</TabsTrigger>
-                    <TabsTrigger value="gif" className="h-full text-base">GIF</TabsTrigger>
-                    <TabsTrigger value="sticker" className="h-full text-base">Stiker</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                            <Smile className="h-6 w-6" />
+                            <span className="sr-only">Pilih Emoji</span>
+                        </Button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="center">
+                        <p>Emoji</p>
+                    </TooltipContent>
+                </Tooltip>
+              <PopoverContent className="w-auto p-0 mb-2 border-0" side="top" align="start">
+                <Picker data={async () => {
+                        const response = await fetch('https://cdn.jsdelivr.net/npm/@emoji-mart/data');
+                        return response.json();
+                    }} onEmojiSelect={handleEmojiSelect} theme="dark" set="apple" />
               </PopoverContent>
             </Popover>
 
@@ -279,6 +238,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
                       {...field}
                       ref={textareaRef}
                       onInput={handleOnInput}
+                      disabled={!!upload}
                     />
                   </FormControl>
                   <FormMessage />
@@ -286,14 +246,14 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
               )}
             />
             
-            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
 
             <Popover open={isAttachmentPopoverOpen} onOpenChange={setAttachmentPopoverOpen}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                      {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" disabled={!!upload}>
+                      {upload ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
                       <span className="sr-only">Lampirkan File</span>
                     </Button>
                   </PopoverTrigger>
@@ -303,11 +263,11 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
                 </TooltipContent>
               </Tooltip>
               <PopoverContent align="end" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
-                <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={!!upload}>
                   <ImageIcon className="h-8 w-8 mb-1" />
                   <span className="text-xs">Gambar</span>
                 </Button>
-                <Button variant="outline" className="flex flex-col h-20 w-20" disabled>
+                <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => fileInputRef.current?.click()} disabled={!!upload}>
                   <DocumentIcon className="h-8 w-8 mb-1" />
                   <span className="text-xs">Dokumen</span>
                 </Button>
@@ -315,7 +275,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
             </Popover>
           </div>
 
-          <Button type="submit" size="icon" disabled={!hasText || form.formState.isSubmitting} className="h-12 w-12 rounded-full flex-shrink-0">
+          <Button type="submit" size="icon" disabled={!hasText || form.formState.isSubmitting || !!upload} className="h-12 w-12 rounded-full flex-shrink-0">
             <SendHorizonal className="h-6 w-6" />
             <span className="sr-only">Kirim Pesan</span>
           </Button>
