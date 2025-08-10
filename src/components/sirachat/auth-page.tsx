@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, LogIn, UserPlus } from "lucide-react";
+import { User, LogIn, UserPlus, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { auth, db } from "@/lib/firebase";
@@ -27,6 +27,10 @@ const registerSchema = z.object({
   username: z.string().trim().min(3, "Nama pengguna minimal 3 karakter.").max(20, "Nama pengguna maksimal 20 karakter.").regex(/^[a-zA-Z0-9_]+$/, "Nama pengguna hanya boleh berisi huruf, angka, dan garis bawah."),
   email: z.string().email("Format email tidak valid."),
   password: z.string().min(6, "Kata sandi minimal 6 karakter."),
+  confirmPassword: z.string()
+}).refine(data => data.password === data.confirmPassword, {
+    message: "Konfirmasi kata sandi tidak cocok.",
+    path: ["confirmPassword"],
 });
 
 const loginSchema = z.object({
@@ -41,7 +45,7 @@ export default function AuthPage() {
 
     const registerForm = useForm<z.infer<typeof registerSchema>>({
         resolver: zodResolver(registerSchema),
-        defaultValues: { username: "", email: "", password: "" },
+        defaultValues: { username: "", email: "", password: "", confirmPassword: "" },
     });
 
     const loginForm = useForm<z.infer<typeof loginSchema>>({
@@ -62,6 +66,10 @@ export default function AuthPage() {
                     title: "Pendaftaran Gagal",
                     description: "Nama pengguna sudah digunakan. Silakan pilih yang lain.",
                     variant: "destructive",
+                });
+                 registerForm.setError("username", {
+                    type: "manual",
+                    message: "Nama pengguna ini sudah digunakan.",
                 });
                 return;
             }
@@ -87,10 +95,10 @@ export default function AuthPage() {
 
         } catch (error: any) {
             console.error("Error registering:", error);
-            // Handle Firebase specific errors (e.g., email-already-in-use)
             let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
             if (error.code === 'auth/email-already-in-use') {
                 errorMessage = "Alamat email ini sudah terdaftar. Silakan masuk atau gunakan email lain.";
+                 loginForm.setError("email", { type: "manual", message: errorMessage });
             } else if (error.message) {
                 errorMessage = error.message;
             }
@@ -136,8 +144,8 @@ export default function AuthPage() {
 
         <Tabs defaultValue="login" className="w-full max-w-sm">
             <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login"><LogIn className="mr-2" />Masuk</TabsTrigger>
-                <TabsTrigger value="register"><UserPlus className="mr-2"/>Daftar</TabsTrigger>
+                <TabsTrigger value="login"><LogIn className="mr-2 h-4 w-4" />Masuk</TabsTrigger>
+                <TabsTrigger value="register"><UserPlus className="mr-2 h-4 w-4"/>Daftar</TabsTrigger>
             </TabsList>
             <TabsContent value="login">
                 <Card>
@@ -157,7 +165,7 @@ export default function AuthPage() {
                                     <FormItem>
                                     <FormLabel>Email</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="email@contoh.com" {...field} />
+                                        <Input placeholder="email@contoh.com" {...field} disabled={isSubmitting} />
                                     </FormControl>
                                     <FormMessage />
                                     </FormItem>
@@ -170,13 +178,14 @@ export default function AuthPage() {
                                     <FormItem>
                                     <FormLabel>Kata Sandi</FormLabel>
                                     <FormControl>
-                                        <Input type="password" placeholder="••••••••" {...field} />
+                                        <Input type="password" placeholder="••••••••" {...field} disabled={isSubmitting} />
                                     </FormControl>
                                     <FormMessage />
                                     </FormItem>
                                 )}
                             />
                             <Button type="submit" className="w-full" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isSubmitting ? 'Memproses...' : 'Masuk'}
                             </Button>
                         </form>
@@ -202,7 +211,7 @@ export default function AuthPage() {
                                     <FormItem>
                                     <FormLabel>Nama Pengguna</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="pilih nama unik" {...field} />
+                                        <Input placeholder="pilih nama unik" {...field} disabled={isSubmitting}/>
                                     </FormControl>
                                     <FormMessage />
                                     </FormItem>
@@ -215,7 +224,7 @@ export default function AuthPage() {
                                     <FormItem>
                                     <FormLabel>Email</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="email@anda.com" {...field} />
+                                        <Input placeholder="email@anda.com" {...field} disabled={isSubmitting}/>
                                     </FormControl>
                                     <FormMessage />
                                     </FormItem>
@@ -228,13 +237,27 @@ export default function AuthPage() {
                                     <FormItem>
                                     <FormLabel>Kata Sandi</FormLabel>
                                     <FormControl>
-                                        <Input type="password" placeholder="minimal 6 karakter" {...field} />
+                                        <Input type="password" placeholder="minimal 6 karakter" {...field} disabled={isSubmitting}/>
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={registerForm.control}
+                                name="confirmPassword"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Konfirmasi Kata Sandi</FormLabel>
+                                    <FormControl>
+                                        <Input type="password" placeholder="ulangi kata sandi" {...field} disabled={isSubmitting}/>
                                     </FormControl>
                                     <FormMessage />
                                     </FormItem>
                                 )}
                             />
                             <Button type="submit" className="w-full" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isSubmitting ? 'Mendaftarkan...' : 'Daftar'}
                             </Button>
                         </form>
