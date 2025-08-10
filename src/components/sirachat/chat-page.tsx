@@ -8,7 +8,7 @@ import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timest
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Globe, User } from "lucide-react";
+import { MoreVertical, Globe, User, PanelLeft } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,7 @@ import {
 import { Skeleton } from "../ui/skeleton";
 import UserProfileDialog from "./user-profile-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { useSidebar } from "../ui/sidebar";
 
 type ChatPageProps = {
   isGlobal?: boolean;
@@ -31,6 +32,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [chatPartner, setChatPartner] = useState<UserProfile | null>(null);
+  const { toggleSidebar, isMobile } = useSidebar();
 
   useEffect(() => {
     if (!currentUser || (!isGlobal && !chatId)) {
@@ -87,7 +89,6 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
                 const chatData = chatSnap.data() as Chat;
                 const partnerId = chatData.members.find((id: string) => id !== currentUser.uid);
                 if(partnerId) {
-                    // Use profile from chat document first
                     const partnerProfile = chatData.memberProfiles[partnerId];
                     if (partnerProfile) {
                         setChatPartner({
@@ -97,7 +98,6 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
                             email: ''
                         });
                     } else {
-                       // Fallback to fetch from users collection if not in chat doc
                        const userRef = doc(db, 'users', partnerId);
                        const userSnap = await getDoc(userRef);
                        if (userSnap.exists()){
@@ -109,7 +109,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
              setIsLoading(false);
         });
     } else {
-        setIsLoading(false); // Not a private chat, so stop loading
+        setIsLoading(false); 
     }
 
 
@@ -211,6 +211,12 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
     <div className="flex h-screen w-full flex-col bg-background">
       <header className="flex items-center justify-between border-b p-3 shadow-sm bg-card">
         <div className="flex items-center gap-3">
+            {isMobile && (
+              <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                <PanelLeft className="h-6 w-6" />
+                <span className="sr-only">Buka Sidebar</span>
+              </Button>
+            )}
             <Avatar className="h-10 w-10 cursor-pointer" onClick={() => handleUserSelect(chatPartner?.uid!)}>
               {isGlobal ? 
                 (<div className="w-full h-full flex items-center justify-center rounded-full bg-primary/20 text-primary">

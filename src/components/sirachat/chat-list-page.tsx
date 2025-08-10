@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import type { UserProfile } from "@/types";
-import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { LogOut, MessageSquare } from "lucide-react";
 import ChatPage from "./chat-page";
 import ChatListContent from "./chat-list-content";
@@ -17,11 +17,15 @@ type ChatLayoutProps = {
 };
 
 export default function ChatListPage({ currentUser, onLogout }: ChatLayoutProps) {
-  const [selectedChatId, setSelectedChatId] = useState<string | null>('global'); // Default to global chat
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null); // Default to no chat selected
   const router = useRouter();
 
   const handleChatSelect = (chatId: string) => {
     setSelectedChatId(chatId);
+    // On mobile, close the sidebar after selection
+    // The useSidebar hook can be used inside a child component of SidebarProvider
+    // For now, we'll let the user close it manually. A more advanced implementation
+    // could use context or a callback.
     if(chatId !== 'global') {
         router.push(`/chat/${chatId}`, { scroll: false });
     } else {
@@ -37,7 +41,7 @@ export default function ChatListPage({ currentUser, onLogout }: ChatLayoutProps)
   return (
     <SidebarProvider>
         <div className="flex h-screen w-screen bg-background">
-            <Sidebar className="w-[320px] border-r">
+            <Sidebar className="w-full max-w-xs border-r">
                 <SidebarContent className="p-0">
                     <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
                 </SidebarContent>
@@ -66,7 +70,7 @@ export default function ChatListPage({ currentUser, onLogout }: ChatLayoutProps)
                         currentUser={currentUser}
                     />
                 ) : (
-                    <div className="flex h-full flex-col items-center justify-center bg-background text-muted-foreground">
+                    <div className="hidden md:flex h-full flex-col items-center justify-center bg-background text-muted-foreground">
                         <MessageSquare className="h-24 w-24 mb-4" />
                         <h2 className="text-2xl font-semibold">Selamat Datang di SiraChat</h2>
                         <p>Pilih obrolan dari daftar untuk memulai.</p>
