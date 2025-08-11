@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
 import ChatListItem from "./chat-list-item";
 import { ScrollArea } from "../ui/scroll-area";
-import { useRouter } from "next/navigation";
-import { collection, query, onSnapshot, where, getDocs, addDoc, serverTimestamp, doc, limit, orderBy } from "firebase/firestore";
+import { collection, query, onSnapshot, where, getDocs, addDoc, serverTimestamp, doc, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { UserProfile, Chat } from "@/types";
 import { Skeleton } from "../ui/skeleton";
@@ -49,10 +48,10 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
 
    useEffect(() => {
+    // Kueri disederhanakan dengan menghapus orderBy untuk menghindari error indeks
     const chatsQuery = query(
       collection(db, "chats"),
-      where("members", "array-contains", currentUser.uid),
-      orderBy("lastMessageTimestamp", "desc")
+      where("members", "array-contains", currentUser.uid)
     );
 
     const unsubscribe = onSnapshot(chatsQuery, async (querySnapshot) => {
@@ -78,6 +77,13 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
               }
           }
       }
+
+      // Pengurutan dilakukan di sisi klien setelah data diterima
+      chatsData.sort((a, b) => {
+        const timeA = a.lastMessageTimestamp?.toDate?.().getTime() || 0;
+        const timeB = b.lastMessageTimestamp?.toDate?.().getTime() || 0;
+        return timeB - timeA;
+      });
 
       setChats(chatsData);
       setIsLoading(false);
