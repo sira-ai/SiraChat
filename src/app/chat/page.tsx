@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { UserProfile } from "@/types";
 import { useRouter } from "next/navigation";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function ChatsRootPage() {
@@ -22,17 +22,25 @@ export default function ChatsRootPage() {
 
             // For desktop, redirect to the most recent chat.
             if (!isMobile) {
+                // Simplified query to avoid composite index error
                 const chatsQuery = query(
                   collection(db, "chats"),
-                  where("members", "array-contains", user.uid),
-                  orderBy("lastMessageTimestamp", "desc"),
-                  limit(1)
+                  where("members", "array-contains", user.uid)
                 );
                 
                 getDocs(chatsQuery).then((querySnapshot) => {
                     if (!querySnapshot.empty) {
-                        const firstChat = querySnapshot.docs[0];
-                        router.replace(`/chat/${firstChat.id}`);
+                        // Sort on the client-side
+                        const chats = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        chats.sort((a: any, b: any) => {
+                            const timeA = a.lastMessageTimestamp?.toDate?.().getTime() || 0;
+                            const timeB = b.lastMessageTimestamp?.toDate?.().getTime() || 0;
+                            return timeB - timeA;
+                        });
+                        const mostRecentChat = chats[0];
+                        if (mostRecentChat) {
+                           router.replace(`/chat/${mostRecentChat.id}`);
+                        }
                     }
                 });
             }
