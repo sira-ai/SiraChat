@@ -48,6 +48,7 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [chatPartner, setChatPartner] = useState<UserProfile | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
   const router = useRouter();
@@ -100,6 +101,7 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
           fileName: data.fileName,
           isEdited: data.isEdited,
           isDeleted: data.isDeleted,
+          replyTo: data.replyTo,
         };
       });
       setMessages(msgs);
@@ -112,12 +114,13 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
     const typingUnsubscribe = onSnapshot(typingRef, (doc) => {
         const data = doc.data() as TypingStatus | undefined;
         const currentTypingUsernames: string[] = [];
-        const currentPartner = chatPartner; // Capture chatPartner at the time of the snapshot
-        if (data && currentPartner) {
-            const partnerStatus = data[currentPartner.uid];
-            if (partnerStatus?.isTyping) {
-                currentTypingUsernames.push(partnerStatus.username);
-            }
+        
+        if (data) {
+            Object.keys(data).forEach(uid => {
+                if (uid !== currentUser?.uid && data[uid].isTyping) {
+                    currentTypingUsernames.push(data[uid].username);
+                }
+            });
         }
         setTypingUsers(currentTypingUsernames);
     });
@@ -172,6 +175,16 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
     const messagesCollectionPath = `chats/${chatId}/messages`;
     
     try {
+      let replyToObject = null;
+      if (replyingToMessage) {
+        replyToObject = {
+            messageId: replyingToMessage.id,
+            sender: replyingToMessage.sender,
+            text: replyingToMessage.text,
+            attachmentType: replyingToMessage.attachmentType,
+        };
+      }
+
       await addDoc(collection(db, messagesCollectionPath), {
         text: message || "",
         sender: currentUser.username,
@@ -180,7 +193,10 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
         attachmentUrl: attachmentUrl || null,
         attachmentType: attachmentType || null,
         fileName: fileName || null,
+        replyTo: replyToObject,
       });
+
+      setReplyingToMessage(null); // Reset reply state
 
       const chatRef = doc(db, "chats", chatId);
       let lastMessageText;
@@ -211,7 +227,6 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
         await updateDoc(messageRef, {
             text: newText,
             isEdited: true,
-            timestamp: serverTimestamp()
         });
         setEditingMessage(null);
         toast({ title: "Pesan berhasil diedit" });
@@ -230,13 +245,19 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
             attachmentUrl: null,
             attachmentType: null,
             fileName: null,
-            isDeleted: true
+            isDeleted: true,
+            replyTo: null,
         });
         toast({ title: "Pesan berhasil dihapus" });
     } catch (error) {
         console.error("Error deleting message:", error);
         toast({ title: "Gagal menghapus pesan", variant: "destructive" });
     }
+  }
+
+  const handleReplyMessage = (message: Message) => {
+    setEditingMessage(null); // Cancel any ongoing edit
+    setReplyingToMessage(message);
   }
 
   const handleDeleteChat = async () => {
@@ -267,7 +288,8 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
 
   const getTypingIndicatorText = () => {
     if (typingUsers.length > 0) {
-        return `${typingUsers[0]} sedang mengetik...`;
+        const users = typingUsers.slice(0, 2).join(', ');
+        return `${users} sedang mengetik...`;
     }
     return chatPartner ? "Online" : "";
   }
@@ -380,8 +402,9 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
             currentUser={currentUser} 
             onUserSelect={handleUserSelect} 
             chatPartner={chatPartner}
-            onEditMessage={(message) => setEditingMessage(message)}
+            onEditMessage={(message) => { setReplyingToMessage(null); setEditingMessage(message); }}
             onDeleteMessage={handleDeleteMessage}
+            onReplyMessage={handleReplyMessage}
         />
       </div>
       <footer className="bg-transparent border-t-0 backdrop-blur-sm">
@@ -391,6 +414,8 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
             chatId={chatId} 
             editingMessage={editingMessage}
             onCancelEdit={() => setEditingMessage(null)}
+            replyingToMessage={replyingToMessage}
+            onCancelReply={() => setReplyingToMessage(null)}
         />
       </footer>
     </div>

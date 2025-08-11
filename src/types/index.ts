@@ -1,4 +1,3 @@
-
 import type { Timestamp } from 'firebase/firestore';
 
 export type Message = {
@@ -12,6 +11,12 @@ export type Message = {
   fileName?: string;
   isEdited?: boolean;
   isDeleted?: boolean;
+  replyTo?: {
+    messageId: string;
+    sender: string;
+    text: string;
+    attachmentType?: 'image' | 'file';
+  } | null;
 };
 
 export type UserProfile = {
@@ -21,6 +26,7 @@ export type UserProfile = {
     avatarUrl?: string;
     status?: string;
     createdAt?: Date | string;
+    role?: 'user' | 'admin';
 }
 
 export type TypingStatus = {

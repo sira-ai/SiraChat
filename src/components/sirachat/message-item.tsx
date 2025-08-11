@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Image from "next/image";
 import { Button } from "../ui/button";
-import { CheckCheck, FileText, Download, Copy, Edit, Trash2 } from "lucide-react";
+import { CheckCheck, FileText, Download, Copy, Edit, Trash2, Reply, CornerUpLeft, ImageIcon, File as FileIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +25,7 @@ type MessageItemProps = {
   senderProfile?: Pick<UserProfile, 'avatarUrl'>;
   onEditMessage: (message: Message) => void;
   onDeleteMessage: (messageId: string) => void;
+  onReplyMessage: (message: Message) => void;
 };
 
 function formatTimestamp(timestamp: Message['timestamp']) {
@@ -35,8 +36,8 @@ function formatTimestamp(timestamp: Message['timestamp']) {
 }
 
 
-export default function MessageItem({ message, isCurrentUser, onUserSelect, partnerAvatar, senderProfile, onEditMessage, onDeleteMessage }: MessageItemProps) {
-  const { text, sender, senderId, timestamp, attachmentUrl, attachmentType, fileName, isEdited, isDeleted } = message;
+export default function MessageItem({ message, isCurrentUser, onUserSelect, partnerAvatar, senderProfile, onEditMessage, onDeleteMessage, onReplyMessage }: MessageItemProps) {
+  const { text, sender, senderId, timestamp, attachmentUrl, attachmentType, fileName, isEdited, isDeleted, replyTo } = message;
   const { toast } = useToast();
 
   const avatarUrl = isCurrentUser ? undefined : (senderProfile?.avatarUrl || partnerAvatar || `https://placehold.co/100x100.png`);
@@ -46,6 +47,26 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
         navigator.clipboard.writeText(text);
         toast({ title: "Teks pesan disalin" });
     }
+  }
+
+  const renderRepliedMessage = () => {
+    if (!replyTo) return null;
+
+    let repliedContent: React.ReactNode = replyTo.text;
+    if(!replyTo.text) {
+        if(replyTo.attachmentType === 'image') {
+            repliedContent = <span className="flex items-center gap-1.5"><ImageIcon className="h-4 w-4"/> Gambar</span>
+        } else {
+            repliedContent = <span className="flex items-center gap-1.5"><FileIcon className="h-4 w-4"/> Dokumen</span>
+        }
+    }
+
+    return (
+        <div className="relative bg-black/10 dark:bg-black/20 p-2 rounded-md mb-1 ml-1.5 mr-1.5 border-l-2 border-primary">
+            <p className="font-bold text-sm text-primary">{replyTo.sender}</p>
+            <p className="text-sm text-foreground/80 truncate">{repliedContent}</p>
+        </div>
+    )
   }
 
   const renderAttachment = () => {
@@ -91,7 +112,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
           isCurrentUser ? "" : "items-start"
       )}>
         <div className={cn(
-          "relative rounded-xl p-1.5",
+          "relative rounded-xl p-1.5 pt-0.5",
           isCurrentUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card shadow-sm border rounded-bl-none",
            isDeleted ? "bg-muted text-muted-foreground italic" : ""
         )}>
@@ -99,6 +120,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
             <p className="text-sm font-bold text-accent px-1.5 pt-1 cursor-pointer" onClick={() => onUserSelect(senderId)}>{sender}</p>
           )}
 
+          {!isDeleted && renderRepliedMessage()}
           {!isDeleted && renderAttachment()}
           
           {(text || (!attachmentUrl && isDeleted)) && (
@@ -147,13 +169,17 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
           </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent align={isCurrentUser ? "end" : "start"} className="w-56">
+          <DropdownMenuItem onClick={() => onReplyMessage(message)} disabled={isDeleted}>
+            <Reply className="mr-2 h-4 w-4" />
+            <span>Balas</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted}>
             <Copy className="mr-2 h-4 w-4" />
             <span>Salin Teks Pesan</span>
           </DropdownMenuItem>
           {isCurrentUser && !isDeleted && (
             <>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl}>
                 <Edit className="mr-2 h-4 w-4" />
                 <span>Edit Pesan</span>

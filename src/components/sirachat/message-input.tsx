@@ -12,7 +12,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, X, Edit, Check } from "lucide-react";
+import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, X, Edit, Check, Reply } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,8 @@ type MessageInputProps = {
   chatId: string;
   editingMessage: Message | null;
   onCancelEdit: () => void;
+  replyingToMessage: Message | null;
+  onCancelReply: () => void;
 };
 
 type UploadProgress = {
@@ -44,7 +46,7 @@ type UploadProgress = {
 // Debounce timer for typing indicator
 let typingTimer: NodeJS.Timeout;
 
-export default function MessageInput({ onSendMessage, currentUser, chatId, editingMessage, onCancelEdit }: MessageInputProps) {
+export default function MessageInput({ onSendMessage, currentUser, chatId, editingMessage, onCancelEdit, replyingToMessage, onCancelReply }: MessageInputProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -61,6 +63,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
   const [emojiData, setEmojiData] = useState(null);
   const hasText = !!form.watch("message");
   const isEditing = !!editingMessage;
+  const isReplying = !!replyingToMessage;
 
   useEffect(() => {
     async function loadEmojiData() {
@@ -128,7 +131,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (values.message.trim()) {
+    if (values.message.trim() || upload) {
       onSendMessage(values.message);
       if (!isEditing) {
         form.reset({ message: '' });
@@ -212,6 +215,11 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
     setTimeout(adjustTextareaHeight, 0);
   }
 
+  const cancelAllModes = () => {
+    onCancelEdit();
+    onCancelReply();
+  }
+
   return (
     <TooltipProvider>
       {upload && (
@@ -227,17 +235,17 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
           </div>
         </div>
       )}
-      {isEditing && (
+      {(isEditing || isReplying) && (
         <div className="p-2 pt-0">
             <div className="bg-muted p-2 rounded-lg text-sm flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                    <Edit className="h-5 w-5 text-primary" />
+                    {isEditing ? <Edit className="h-5 w-5 text-primary" /> : <Reply className="h-5 w-5 text-primary" />}
                     <div>
-                        <p className="font-bold text-primary">Edit Pesan</p>
-                        <p className="text-muted-foreground line-clamp-1">{editingMessage.text}</p>
+                        <p className="font-bold text-primary">{isEditing ? "Edit Pesan" : `Membalas kepada ${replyingToMessage?.sender}`}</p>
+                        <p className="text-muted-foreground line-clamp-1">{isEditing ? editingMessage?.text : replyingToMessage?.text}</p>
                     </div>
                 </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onCancelEdit}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelAllModes}>
                     <X className="h-4 w-4"/>
                 </Button>
             </div>
