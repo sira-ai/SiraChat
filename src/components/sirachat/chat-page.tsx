@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Message, UserProfile, TypingStatus, Chat } from "@/types";
 import { db } from "@/lib/firebase"; 
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, writeBatch, deleteDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, writeBatch, getDocs } from "firebase/firestore";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
@@ -158,6 +158,7 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
       typingUnsubscribe();
       unsubscribeChat();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, chatId, router, toast]);
 
   const handleSendMessage = async (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => {

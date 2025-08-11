@@ -123,6 +123,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
           updateTypingStatus(false);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, chatId]);
 
 

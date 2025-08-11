@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useIsMobile } from "@/hooks/use-mobile";
 import UserProfileDialog from "@/components/sirachat/user-profile-dialog";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -22,7 +21,6 @@ export default function ChatLayout({
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const isMobile = useIsMobile();
 
   // Dialog state
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -102,6 +100,7 @@ export default function ChatLayout({
   }
 
   return (
+    <>
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
           {/* Main Sidebar for Desktop */}
@@ -129,12 +128,13 @@ export default function ChatLayout({
             {children}
           </main>
       </div>
-      <UserProfileDialog
-          user={currentUser}
-          isMyProfile={true}
-          open={isProfileDialogOpen}
-          onOpenChange={setIsProfileDialogOpen}
-      />
     </SidebarProvider>
+    <UserProfileDialog
+        user={currentUser}
+        isMyProfile={true}
+        open={isProfileDialogOpen}
+        onOpenChange={setIsProfileDialogOpen}
+    />
+    </>
   );
 }

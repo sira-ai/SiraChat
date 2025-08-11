@@ -55,7 +55,7 @@ export default function ChatsRootPage() {
     };
 
     if (isMobile) {
-        if (!currentUser) return null;
+        if (!currentUser) return null; // or a loading state
         return <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect} />;
     }
 
