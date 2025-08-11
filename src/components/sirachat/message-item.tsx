@@ -44,7 +44,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
   const handleCopy = () => {
     if(text && !isDeleted) {
         navigator.clipboard.writeText(text);
-        toast({ title: "Pesan disalin ke clipboard" });
+        toast({ title: "Teks pesan disalin" });
     }
   }
 
@@ -91,9 +91,9 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
           isCurrentUser ? "" : "items-start"
       )}>
         <div className={cn(
-          "relative rounded-xl py-1.5 px-0",
+          "relative rounded-xl p-1.5",
           isCurrentUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card shadow-sm border rounded-bl-none",
-           isDeleted ? "bg-muted text-muted-foreground italic border-transparent shadow-none" : ""
+           isDeleted ? "bg-muted text-muted-foreground italic" : ""
         )}>
            {!isCurrentUser && senderId && !isDeleted && (
             <p className="text-sm font-bold text-accent px-1.5 pt-1 cursor-pointer" onClick={() => onUserSelect(senderId)}>{sender}</p>

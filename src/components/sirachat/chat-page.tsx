@@ -112,9 +112,9 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
     const typingUnsubscribe = onSnapshot(typingRef, (doc) => {
         const data = doc.data() as TypingStatus | undefined;
         const currentTypingUsernames: string[] = [];
-
-        if (data && chatPartner) {
-            const partnerStatus = data[chatPartner.uid];
+        const currentPartner = chatPartner; // Capture chatPartner at the time of the snapshot
+        if (data && currentPartner) {
+            const partnerStatus = data[currentPartner.uid];
             if (partnerStatus?.isTyping) {
                 currentTypingUsernames.push(partnerStatus.username);
             }
@@ -158,7 +158,6 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
       typingUnsubscribe();
       unsubscribeChat();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, chatId, router, toast]);
 
   const handleSendMessage = async (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => {
