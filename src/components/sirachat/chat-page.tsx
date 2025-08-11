@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -8,7 +7,7 @@ import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timest
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Globe, User, PanelLeft, ArrowLeft, Trash2 } from "lucide-react";
+import { MoreVertical, User, PanelLeft, ArrowLeft, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,12 +36,11 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
 type ChatPageProps = {
-  isGlobal?: boolean;
-  chatId?: string;
+  chatId: string;
   currentUser: UserProfile | null;
 };
 
-export default function ChatPage({ isGlobal = false, chatId, currentUser }: ChatPageProps) {
+export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
@@ -55,16 +53,38 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
   const router = useRouter();
   const { toast } = useToast();
 
+  const handleUserSelect = useCallback(async (senderId: string) => {
+    if (!currentUser) return;
+    
+    const isMyProfileSelected = !senderId || senderId === currentUser.uid;
+    setIsMyProfile(isMyProfileSelected);
+
+    const targetId = isMyProfileSelected ? currentUser.uid : senderId;
+
+    if (!isMyProfileSelected && targetId === chatPartner?.uid) {
+      setSelectedUser(chatPartner);
+      return;
+    }
+    
+    try {
+      const userRef = doc(db, 'users', targetId);
+      const userSnap = await getDoc(userRef);
+      if(userSnap.exists()){
+          setSelectedUser(userSnap.data() as UserProfile);
+      }
+    } catch (e) {
+      console.error("Could not fetch user profile, possibly offline.", e);
+    }
+  }, [currentUser, chatPartner]);
 
   useEffect(() => {
-    if (!currentUser || (!isGlobal && !chatId)) {
-        setIsLoading(isGlobal); 
+    if (!currentUser || !chatId) {
         return;
     };
 
     setIsLoading(true); 
 
-    const messagesCollectionPath = isGlobal ? "messages" : `chats/${chatId}/messages`;
+    const messagesCollectionPath = `chats/${chatId}/messages`;
     const messagesQuery = query(collection(db, messagesCollectionPath), orderBy("timestamp", "asc"));
     const messagesUnsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
       const msgs: Message[] = querySnapshot.docs.map(doc => {
@@ -88,68 +108,60 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
         setIsLoading(false);
     });
 
-    let typingUnsubscribe = () => {};
-    if (!isGlobal && chatId && currentUser) {
-        const typingRef = doc(db, "typingStatus", chatId);
-        typingUnsubscribe = onSnapshot(typingRef, (doc) => {
-            const data = doc.data() as TypingStatus | undefined;
-            const currentTypingUsernames: string[] = [];
+    const typingRef = doc(db, "typingStatus", chatId);
+    const typingUnsubscribe = onSnapshot(typingRef, (doc) => {
+        const data = doc.data() as TypingStatus | undefined;
+        const currentTypingUsernames: string[] = [];
 
-            if (data && chatPartner) {
-                const partnerStatus = data[chatPartner.uid];
-                if (partnerStatus?.isTyping) {
-                   currentTypingUsernames.push(partnerStatus.username);
-                }
+        if (data && chatPartner) {
+            const partnerStatus = data[chatPartner.uid];
+            if (partnerStatus?.isTyping) {
+                currentTypingUsernames.push(partnerStatus.username);
             }
-            setTypingUsers(currentTypingUsernames);
-        });
-    }
+        }
+        setTypingUsers(currentTypingUsernames);
+    });
+    
 
-    let unsubscribeChat = () => {};
-    if (!isGlobal && chatId && currentUser) {
-        const chatRef = doc(db, 'chats', chatId);
-        unsubscribeChat = onSnapshot(chatRef, async (chatSnap) => {
-            if(chatSnap.exists()){
-                const chatData = chatSnap.data() as Chat;
-                const partnerId = chatData.members.find((id: string) => id !== currentUser.uid);
-                if(partnerId) {
-                    const partnerProfile = chatData.memberProfiles[partnerId];
-                    if (partnerProfile) {
-                        setChatPartner({
-                            uid: partnerId,
-                            username: partnerProfile.username,
-                            avatarUrl: partnerProfile.avatarUrl,
-                            email: ''
-                        });
-                    } else {
-                       const userRef = doc(db, 'users', partnerId);
-                       const userSnap = await getDoc(userRef);
-                       if (userSnap.exists()){
-                           setChatPartner(userSnap.data() as UserProfile);
-                       }
+    const chatRef = doc(db, 'chats', chatId);
+    const unsubscribeChat = onSnapshot(chatRef, async (chatSnap) => {
+        if(chatSnap.exists()){
+            const chatData = chatSnap.data() as Chat;
+            const partnerId = chatData.members.find((id: string) => id !== currentUser.uid);
+            if(partnerId) {
+                const partnerProfile = chatData.memberProfiles[partnerId];
+                if (partnerProfile) {
+                    setChatPartner({
+                        uid: partnerId,
+                        username: partnerProfile.username,
+                        avatarUrl: partnerProfile.avatarUrl,
+                        email: ''
+                    });
+                } else {
+                    const userRef = doc(db, 'users', partnerId);
+                    const userSnap = await getDoc(userRef);
+                    if (userSnap.exists()){
+                        setChatPartner(userSnap.data() as UserProfile);
                     }
                 }
-            } else {
-                 console.log("Chat does not exist, redirecting.");
-                 toast({ title: "Obrolan tidak ditemukan", description: "Obrolan ini mungkin telah dihapus.", variant: "destructive"});
-                 router.push('/chat');
             }
-             setIsLoading(false);
-        });
-    } else {
-        setIsLoading(false); 
-    }
-
+        } else {
+             console.log("Chat does not exist, redirecting.");
+             toast({ title: "Obrolan tidak ditemukan", description: "Obrolan ini mungkin telah dihapus.", variant: "destructive"});
+             router.push('/chat');
+        }
+         setIsLoading(false);
+    });
 
     return () => {
       messagesUnsubscribe();
       typingUnsubscribe();
       unsubscribeChat();
     }
-  }, [currentUser, isGlobal, chatId, router, toast]);
+  }, [currentUser, chatId, router, toast, chatPartner]);
 
   const handleSendMessage = async (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => {
-    if (!currentUser || (!isGlobal && !chatId)) return;
+    if (!currentUser || !chatId) return;
     if (message.trim() === '' && !attachmentUrl) return;
 
     if (editingMessage) {
@@ -157,7 +169,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
         return;
     }
 
-    const messagesCollectionPath = isGlobal ? "messages" : `chats/${chatId}/messages`;
+    const messagesCollectionPath = `chats/${chatId}/messages`;
     
     try {
       await addDoc(collection(db, messagesCollectionPath), {
@@ -170,38 +182,36 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
         fileName: fileName || null,
       });
 
-      if (!isGlobal && chatId) {
-          const chatRef = doc(db, "chats", chatId);
-          let lastMessageText;
-          if (message) {
-              lastMessageText = message.length > 30 ? message.substring(0, 30) + "..." : message;
-          } else if (attachmentType === 'image') {
-              lastMessageText = "Gambar";
-          } else if (attachmentType === 'file') {
-              lastMessageText = "Dokumen";
-          } else {
-              lastMessageText = "Lampiran";
-          }
-          
-          await updateDoc(chatRef, {
-              lastMessage: lastMessageText,
-              lastMessageTimestamp: serverTimestamp()
-          });
+      const chatRef = doc(db, "chats", chatId);
+      let lastMessageText;
+      if (message) {
+          lastMessageText = message.length > 30 ? message.substring(0, 30) + "..." : message;
+      } else if (attachmentType === 'image') {
+          lastMessageText = "Gambar";
+      } else if (attachmentType === 'file') {
+          lastMessageText = "Dokumen";
+      } else {
+          lastMessageText = "Lampiran";
       }
-
+      
+      await updateDoc(chatRef, {
+          lastMessage: lastMessageText,
+          lastMessageTimestamp: serverTimestamp()
+      });
+      
     } catch (error) {
       console.error("Error sending message: ", error);
     }
   };
 
   const handleEditMessage = async (messageId: string, newText: string) => {
-    if (!chatId || isGlobal) return;
+    if (!chatId) return;
     const messageRef = doc(db, `chats/${chatId}/messages`, messageId);
     try {
         await updateDoc(messageRef, {
             text: newText,
             isEdited: true,
-            timestamp: serverTimestamp() // Optionally update timestamp
+            timestamp: serverTimestamp()
         });
         setEditingMessage(null);
         toast({ title: "Pesan berhasil diedit" });
@@ -212,7 +222,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
   }
 
   const handleDeleteMessage = async (messageId: string) => {
-    if (!chatId || isGlobal) return;
+    if (!chatId) return;
     const messageRef = doc(db, `chats/${chatId}/messages`, messageId);
     try {
         await updateDoc(messageRef, {
@@ -230,10 +240,9 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
   }
 
   const handleDeleteChat = async () => {
-    if (!chatId || isGlobal || !currentUser) return;
+    if (!chatId || !currentUser) return;
 
     try {
-        // Delete all messages in the chat subcollection
         const messagesRef = collection(db, `chats/${chatId}/messages`);
         const messagesSnap = await getDocs(messagesRef);
         
@@ -242,7 +251,6 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
             batch.delete(doc.ref);
         });
 
-        // Delete the chat document itself
         const chatRef = doc(db, 'chats', chatId);
         batch.delete(chatRef);
 
@@ -256,30 +264,6 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
         toast({ title: "Gagal menghapus obrolan", description: "Terjadi kesalahan yang tidak terduga.", variant: "destructive" });
     }
   }
-  
-  const handleUserSelect = useCallback(async (senderId: string) => {
-      if (!currentUser) return;
-      
-      const isMyProfileSelected = !senderId || senderId === currentUser.uid;
-      setIsMyProfile(isMyProfileSelected);
-
-      const targetId = isMyProfileSelected ? currentUser.uid : senderId;
-
-      if (!isGlobal && !isMyProfileSelected && targetId === chatPartner?.uid) {
-        setSelectedUser(chatPartner);
-        return;
-      }
-      
-      try {
-        const userRef = doc(db, 'users', targetId);
-        const userSnap = await getDoc(userRef);
-        if(userSnap.exists()){
-            setSelectedUser(userSnap.data() as UserProfile);
-        }
-      } catch (e) {
-        console.error("Could not fetch user profile, possibly offline.", e);
-      }
-    }, [isGlobal, currentUser, chatPartner]);
 
   const getTypingIndicatorText = () => {
     if (typingUsers.length > 0) {
@@ -288,11 +272,11 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
     return chatPartner ? "Online" : "";
   }
   
-  const currentChatName = isGlobal ? "Ruang Obrolan Global" : (chatPartner?.username || "Memuat Obrolan...");
-  const currentChatAvatar = isGlobal ? undefined : (chatPartner?.avatarUrl || 'https://placehold.co/100x100.png');
+  const currentChatName = chatPartner?.username || "Memuat Obrolan...";
+  const currentChatAvatar = chatPartner?.avatarUrl || 'https://placehold.co/100x100.png';
 
 
-  if (isLoading || !currentUser || (!isGlobal && !chatPartner)) {
+  if (isLoading || !currentUser || !chatPartner) {
     return (
         <div className="flex h-screen w-full flex-col bg-background">
             <header className="flex items-center justify-between border-b p-3 shadow-sm bg-card h-[69px]">
@@ -338,11 +322,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
               </Button>
             )}
             <Avatar className="h-10 w-10 cursor-pointer" onClick={() => handleUserSelect(chatPartner?.uid!)}>
-              {isGlobal ? 
-                (<div className="w-full h-full flex items-center justify-center rounded-full bg-primary/20 text-primary">
-                    <Globe className="h-6 w-6" />
-                </div>)
-              : <AvatarImage src={currentChatAvatar} alt={currentChatName} />}
+              <AvatarImage src={currentChatAvatar} alt={currentChatName} />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {currentChatName.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -350,7 +330,7 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
             <div className="min-w-0">
               <h1 className="text-lg font-bold font-headline text-foreground leading-tight truncate cursor-pointer" onClick={() => handleUserSelect(chatPartner?.uid!)}>{currentChatName}</h1>
               <p className="text-sm text-primary truncate">
-                {isGlobal ? "Ngobrol dengan semua pengguna SiraChat" : getTypingIndicatorText()}
+                {getTypingIndicatorText()}
               </p>
             </div>
         </div>
@@ -364,13 +344,13 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleUserSelect(chatPartner?.uid!)} disabled={isGlobal}>
+                    <DropdownMenuItem onClick={() => handleUserSelect(chatPartner?.uid!)}>
                         <User className="mr-2 h-4 w-4" />
                         <span>Info Kontak</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={isGlobal}>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive">
                             <Trash2 className="mr-2 h-4 w-4"/>
                             <span>Hapus Obrolan</span>
                         </DropdownMenuItem>
@@ -409,7 +389,6 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
             onSendMessage={handleSendMessage} 
             currentUser={currentUser} 
             chatId={chatId} 
-            isGlobal={isGlobal}
             editingMessage={editingMessage}
             onCancelEdit={() => setEditingMessage(null)}
         />
@@ -423,5 +402,3 @@ export default function ChatPage({ isGlobal = false, chatId, currentUser }: Chat
     </>
   );
 }
-
-    

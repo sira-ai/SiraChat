@@ -1,17 +1,15 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
 import type { UserProfile } from "@/types";
-import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
-import { LogOut, User } from "lucide-react";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
+import { LogOut } from "lucide-react";
 import ChatListContent from "@/components/sirachat/chat-list-content";
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
-import ChatListPage from "@/components/sirachat/chat-list-page";
 import UserProfileDialog from "@/components/sirachat/user-profile-dialog";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -68,7 +66,7 @@ export default function ChatLayout({
   }
 
   const handleChatSelect = (chatId: string) => {
-    router.push(chatId === 'global' ? '/chat/global' : `/chat/${chatId}`);
+    router.push(`/chat/${chatId}`);
   };
 
   const openMyProfile = () => {
@@ -104,52 +102,39 @@ export default function ChatLayout({
   }
 
   return (
-    <>
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <Sidebar className="w-full max-w-xs border-r hidden md:flex">
-            <SidebarContent className="p-0">
-                <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
-            </SidebarContent>
-            <SidebarFooter className="p-2">
-                <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-card transition-colors cursor-pointer" onClick={openMyProfile}>
-                    <Avatar className="h-10 w-10">
-                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
-                        <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-bold truncate">{currentUser.username}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
-                        <LogOut className="h-5 w-5" />
-                    </Button>
-                </div>
-            </SidebarFooter>
-        </Sidebar>
-
-        <main className="flex-1 h-screen">
-          {isMobile ? children : (
-            <div className="h-full w-full flex">
-              <div className="w-full max-w-xs border-r xl:flex flex-col bg-background hidden">
-                 <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
-              </div>
-              <div className="flex-1 h-screen">
-                {children}
-              </div>
-            </div>
-          )}
-        </main>
+          {/* Main Sidebar for Desktop */}
+          <Sidebar className="w-full max-w-xs border-r hidden md:flex">
+              <SidebarContent className="p-0">
+                  <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
+              </SidebarContent>
+              <SidebarFooter className="p-2">
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-card transition-colors cursor-pointer" onClick={openMyProfile}>
+                      <Avatar className="h-10 w-10">
+                          <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
+                          <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                          <p className="font-bold truncate">{currentUser.username}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
+                          <LogOut className="h-5 w-5" />
+                      </Button>
+                  </div>
+              </SidebarFooter>
+          </Sidebar>
+          
+          <main className="flex-1 h-screen w-full">
+            {children}
+          </main>
       </div>
+      <UserProfileDialog
+          user={currentUser}
+          isMyProfile={true}
+          open={isProfileDialogOpen}
+          onOpenChange={setIsProfileDialogOpen}
+      />
     </SidebarProvider>
-    <UserProfileDialog
-        user={currentUser}
-        isMyProfile={true}
-        open={isProfileDialogOpen}
-        onOpenChange={setIsProfileDialogOpen}
-    />
-    </>
   );
 }
-
-
-    

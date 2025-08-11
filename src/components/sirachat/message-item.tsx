@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Message, UserProfile } from "@/types";
@@ -8,11 +7,12 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Image from "next/image";
 import { Button } from "../ui/button";
-import { Check, CheckCheck, FileText, Download, MoreHorizontal, Copy, Edit, Trash2 } from "lucide-react";
+import { CheckCheck, FileText, Download, Copy, Edit, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +42,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
   const avatarUrl = isCurrentUser ? undefined : (senderProfile?.avatarUrl || partnerAvatar || `https://placehold.co/100x100.png`);
 
   const handleCopy = () => {
-    if(text) {
+    if(text && !isDeleted) {
         navigator.clipboard.writeText(text);
         toast({ title: "Pesan disalin ke clipboard" });
     }
@@ -91,9 +91,9 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
           isCurrentUser ? "" : "items-start"
       )}>
         <div className={cn(
-          "relative rounded-xl p-1.5",
+          "relative rounded-xl py-1.5 px-0",
           isCurrentUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card shadow-sm border rounded-bl-none",
-           isDeleted ? "bg-muted text-muted-foreground italic" : ""
+           isDeleted ? "bg-muted text-muted-foreground italic border-transparent shadow-none" : ""
         )}>
            {!isCurrentUser && senderId && !isDeleted && (
             <p className="text-sm font-bold text-accent px-1.5 pt-1 cursor-pointer" onClick={() => onUserSelect(senderId)}>{sender}</p>
@@ -101,7 +101,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
 
           {!isDeleted && renderAttachment()}
           
-          {(text || (!attachmentUrl && !isDeleted)) && (
+          {(text || (!attachmentUrl && isDeleted)) && (
             <div className="flex items-end gap-2 px-1.5 pb-1">
                 {text && <p className="text-base whitespace-pre-wrap break-words leading-relaxed pt-1">{text}</p>}
                 <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
@@ -149,10 +149,11 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
         <DropdownMenuContent align={isCurrentUser ? "end" : "start"} className="w-56">
           <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted}>
             <Copy className="mr-2 h-4 w-4" />
-            <span>Salin Pesan</span>
+            <span>Salin Teks Pesan</span>
           </DropdownMenuItem>
           {isCurrentUser && !isDeleted && (
             <>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl}>
                 <Edit className="mr-2 h-4 w-4" />
                 <span>Edit Pesan</span>
@@ -169,4 +170,3 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
     </div>
   );
 }
-

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,7 +12,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, X, Edit } from "lucide-react";
+import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, X, Edit, Check } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
@@ -32,8 +31,7 @@ const formSchema = z.object({
 type MessageInputProps = {
   onSendMessage: (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => void;
   currentUser: UserProfile | null;
-  chatId?: string;
-  isGlobal?: boolean;
+  chatId: string;
   editingMessage: Message | null;
   onCancelEdit: () => void;
 };
@@ -46,7 +44,7 @@ type UploadProgress = {
 // Debounce timer for typing indicator
 let typingTimer: NodeJS.Timeout;
 
-export default function MessageInput({ onSendMessage, currentUser, chatId, isGlobal = false, editingMessage, onCancelEdit }: MessageInputProps) {
+export default function MessageInput({ onSendMessage, currentUser, chatId, editingMessage, onCancelEdit }: MessageInputProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -91,8 +89,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
 
   // Typing indicator logic
   const updateTypingStatus = async (isTyping: boolean) => {
-    // Only update typing status in private chats
-    if (isGlobal || !currentUser || !chatId) return;
+    if (!currentUser || !chatId) return;
     try {
       const typingRef = doc(db, "typingStatus", chatId);
       const updateData = {
@@ -122,11 +119,11 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
   useEffect(() => {
     return () => {
       clearTimeout(typingTimer);
-      if (currentUser && chatId && !isGlobal) {
+      if (currentUser && chatId) {
           updateTypingStatus(false);
       }
     };
-  }, [currentUser, chatId, isGlobal]);
+  }, [currentUser, chatId]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -338,4 +335,3 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, isGlo
     </TooltipProvider>
   );
 }
-

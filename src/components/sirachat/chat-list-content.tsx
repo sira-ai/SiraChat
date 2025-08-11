@@ -1,13 +1,12 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Pencil, Globe } from "lucide-react";
+import { Pencil } from "lucide-react";
 import ChatListItem from "./chat-list-item";
 import { ScrollArea } from "../ui/scroll-area";
 import { useRouter } from "next/navigation";
-import { collection, query, onSnapshot, where, getDocs, addDoc, serverTimestamp, doc, limit } from "firebase/firestore";
+import { collection, query, onSnapshot, where, getDocs, addDoc, serverTimestamp, doc, limit, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { UserProfile, Chat } from "@/types";
 import { Skeleton } from "../ui/skeleton";
@@ -22,9 +21,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
-import Link from "next/link";
 import UserProfileDialog from "./user-profile-dialog";
-import { Separator } from "../ui/separator";
 
 type ChatListContentProps = {
   currentUser: UserProfile;
@@ -50,12 +47,12 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
   const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [isNewChatDialogOpen, setIsNewChatDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
-  const router = useRouter();
 
    useEffect(() => {
     const chatsQuery = query(
       collection(db, "chats"),
-      where("members", "array-contains", currentUser.uid)
+      where("members", "array-contains", currentUser.uid),
+      orderBy("lastMessageTimestamp", "desc")
     );
 
     const unsubscribe = onSnapshot(chatsQuery, async (querySnapshot) => {
@@ -81,12 +78,6 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
               }
           }
       }
-
-      chatsData.sort((a, b) => {
-        const timeA = a.lastMessageTimestamp?.toDate?.()?.getTime() || 0;
-        const timeB = b.lastMessageTimestamp?.toDate?.()?.getTime() || 0;
-        return timeB - timeA;
-      });
 
       setChats(chatsData);
       setIsLoading(false);
@@ -227,17 +218,7 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
                 </div>
             ) : (
                 <div className="divide-y divide-border">
-                    <div onClick={() => onChatSelect('global')} className="cursor-pointer">
-                      <ChatListItem
-                          avatar=""
-                          isGlobal
-                          name="Ruang Obrolan Global"
-                          lastMessage="Ngobrol dengan semua pengguna"
-                          time=""
-                      />
-                    </div>
-                    
-                    {chats.map((chat) => (
+                    {chats.length > 0 ? chats.map((chat) => (
                       <div key={chat.id} onClick={() => onChatSelect(chat.id)} className="cursor-pointer">
                         <ChatListItem
                             avatar={chat.partner.avatarUrl || `https://placehold.co/100x100.png`}
@@ -246,7 +227,12 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
                             time={formatTimestamp(chat.lastMessageTimestamp)}
                         />
                       </div>
-                    ))}
+                    )) : (
+                        <div className="text-center text-muted-foreground p-8">
+                            <p>Anda belum memiliki obrolan.</p>
+                            <p className="text-sm">Klik ikon pensil di atas untuk memulai!</p>
+                        </div>
+                    )}
                 </div>
             )}
         </ScrollArea>

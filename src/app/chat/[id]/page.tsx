@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -21,11 +20,10 @@ export default function PrivateChat() {
     }
   }, [router]);
 
-  if (!currentUser) {
+  if (!currentUser || !chatId) {
     return null; // Or a loading skeleton
   }
 
-  // The 'isGlobal' prop is implicitly false here
   return (
     <ChatPage
       chatId={chatId}
