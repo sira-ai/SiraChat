@@ -158,7 +158,7 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
       typingUnsubscribe();
       unsubscribeChat();
     }
-  }, [currentUser, chatId, router, toast, chatPartner]);
+  }, [currentUser, chatId, router, toast]);
 
   const handleSendMessage = async (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => {
     if (!currentUser || !chatId) return;
