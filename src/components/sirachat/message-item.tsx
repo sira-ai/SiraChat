@@ -16,12 +16,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 type MessageItemProps = {
   message: Message;
@@ -151,11 +145,10 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
   );
 
   return (
-    <TooltipProvider>
     <div
       className={cn(
-        "group flex items-end gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500",
-        isCurrentUser ? "justify-end flex-row-reverse" : "justify-start"
+        "flex items-end gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500",
+        isCurrentUser ? "justify-end" : "justify-start"
       )}
     >
       {!isCurrentUser && senderId && (
@@ -168,19 +161,6 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
             </Avatar>
         </Button>
       )}
-
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-         <Tooltip>
-            <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onReplyMessage(message)} disabled={isDeleted}>
-                    <Reply className="h-4 w-4"/>
-                </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-                <p>Balas</p>
-            </TooltipContent>
-         </Tooltip>
-      </div>
       
        <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -212,8 +192,6 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-
     </div>
-    </TooltipProvider>
   );
 }
