@@ -89,6 +89,12 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
     }
   }, [editingMessage, form]);
 
+   useEffect(() => {
+    if(replyingToMessage || editingMessage) {
+        textareaRef.current?.focus();
+    }
+   }, [replyingToMessage, editingMessage])
+
 
   // Typing indicator logic
   const updateTypingStatus = async (isTyping: boolean) => {
@@ -220,6 +226,14 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
     onCancelReply();
   }
 
+  const getRepliedContentPreview = () => {
+    if(!replyingToMessage) return "";
+    if (replyingToMessage.text) return replyingToMessage.text;
+    if (replyingToMessage.attachmentType === 'image') return "Gambar";
+    if (replyingToMessage.attachmentType === 'file') return "Dokumen";
+    return "";
+  }
+
   return (
     <TooltipProvider>
       {upload && (
@@ -238,14 +252,14 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
       {(isEditing || isReplying) && (
         <div className="p-2 pt-0">
             <div className="bg-muted p-2 rounded-lg text-sm flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    {isEditing ? <Edit className="h-5 w-5 text-primary" /> : <Reply className="h-5 w-5 text-primary" />}
-                    <div>
-                        <p className="font-bold text-primary">{isEditing ? "Edit Pesan" : `Membalas kepada ${replyingToMessage?.sender}`}</p>
-                        <p className="text-muted-foreground line-clamp-1">{isEditing ? editingMessage?.text : replyingToMessage?.text}</p>
+                <div className="flex items-center gap-2 min-w-0">
+                    {isEditing ? <Edit className="h-5 w-5 text-primary flex-shrink-0" /> : <Reply className="h-5 w-5 text-primary flex-shrink-0" />}
+                    <div className="min-w-0">
+                        <p className="font-bold text-primary truncate">{isEditing ? "Edit Pesan" : `Membalas kepada ${replyingToMessage?.sender}`}</p>
+                        <p className="text-muted-foreground truncate">{isEditing ? editingMessage?.text : getRepliedContentPreview()}</p>
                     </div>
                 </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelAllModes}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={cancelAllModes}>
                     <X className="h-4 w-4"/>
                 </Button>
             </div>
@@ -335,7 +349,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
             </Popover>
           </div>
 
-          <Button type="submit" size="icon" disabled={!hasText || form.formState.isSubmitting || !!upload} className="h-12 w-12 rounded-full flex-shrink-0">
+          <Button type="submit" size="icon" disabled={(!hasText && !upload) || form.formState.isSubmitting} className="h-12 w-12 rounded-full flex-shrink-0">
             {isEditing ? <Check className="h-6 w-6" /> : <SendHorizonal className="h-6 w-6" />}
             <span className="sr-only">{isEditing ? "Simpan Perubahan" : "Kirim Pesan"}</span>
           </Button>

@@ -15,7 +15,7 @@ export type Message = {
     messageId: string;
     sender: string;
     text: string;
-    attachmentType?: 'image' | 'file';
+    attachmentType?: 'image' | 'file' | null;
   } | null;
 };
 

@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Image from "next/image";
 import { Button } from "../ui/button";
-import { CheckCheck, FileText, Download, Copy, Edit, Trash2, Reply, CornerUpLeft, ImageIcon, File as FileIcon } from "lucide-react";
+import { CheckCheck, FileText, Download, Copy, Edit, Trash2, Reply, ImageIcon, File as FileIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 type MessageItemProps = {
   message: Message;
@@ -123,7 +129,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
           {!isDeleted && renderRepliedMessage()}
           {!isDeleted && renderAttachment()}
           
-          {(text || (!attachmentUrl && isDeleted)) && (
+          {(text || isDeleted) && (
             <div className="flex items-end gap-2 px-1.5 pb-1">
                 {text && <p className="text-base whitespace-pre-wrap break-words leading-relaxed pt-1">{text}</p>}
                 <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
@@ -145,10 +151,11 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
   );
 
   return (
+    <TooltipProvider>
     <div
       className={cn(
-        "flex items-end gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500 group",
-        isCurrentUser ? "justify-end" : "justify-start"
+        "group flex items-end gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500",
+        isCurrentUser ? "justify-end flex-row-reverse" : "justify-start"
       )}
     >
       {!isCurrentUser && senderId && (
@@ -161,6 +168,19 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
             </Avatar>
         </Button>
       )}
+
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+         <Tooltip>
+            <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onReplyMessage(message)} disabled={isDeleted}>
+                    <Reply className="h-4 w-4"/>
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>Balas</p>
+            </TooltipContent>
+         </Tooltip>
+      </div>
       
        <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -194,5 +214,6 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
       </DropdownMenu>
 
     </div>
+    </TooltipProvider>
   );
 }

@@ -180,8 +180,8 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
         replyToObject = {
             messageId: replyingToMessage.id,
             sender: replyingToMessage.sender,
-            text: replyingToMessage.text,
-            attachmentType: replyingToMessage.attachmentType,
+            text: replyingToMessage.text || "",
+            attachmentType: replyingToMessage.attachmentType || null,
         };
       }
 
