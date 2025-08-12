@@ -18,55 +18,63 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNowStrict } from 'date-fns';
 import { id } from 'date-fns/locale';
 import UserProfileDialog from "./user-profile-dialog";
+import { usePathname } from "next/navigation";
 
 type ChatListContentProps = {
   currentUser: UserProfile;
   onChatSelect: (chatId: string) => void;
 };
 
-type ChatWithPartner = Chat & {
+type ChatWithDetails = Chat & {
   partner: UserProfile;
+  unreadCount: number;
 }
 
 function formatTimestamp(timestamp: any) {
     if (!timestamp) return '';
-    if (timestamp && typeof timestamp.toDate === 'function') {
-      return formatDistanceToNow(timestamp.toDate(), { addSuffix: true, locale: id });
+    try {
+        const date = timestamp.toDate();
+        return formatDistanceToNowStrict(date, { addSuffix: false, locale: id });
+    } catch(e) {
+        return '';
     }
-    return formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: id });
 }
 
 export default function ChatListContent({ currentUser, onChatSelect }: ChatListContentProps) {
-  const [chats, setChats] = useState<ChatWithPartner[]>([]);
+  const [chats, setChats] = useState<ChatWithDetails[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [isNewChatDialogOpen, setIsNewChatDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const pathname = usePathname();
+
 
    useEffect(() => {
-    // Kueri disederhanakan dengan menghapus orderBy untuk menghindari error indeks
     const chatsQuery = query(
       collection(db, "chats"),
       where("members", "array-contains", currentUser.uid)
     );
 
     const unsubscribe = onSnapshot(chatsQuery, async (querySnapshot) => {
-      const chatsData: ChatWithPartner[] = [];
+      const chatsData: ChatWithDetails[] = [];
+      let totalUnread = 0;
       
       for (const chatDoc of querySnapshot.docs) {
-          const chat = chatDoc.data() as Chat;
+          const chat = { id: chatDoc.id, ...chatDoc.data() } as Chat;
           const partnerId = chat.members.find(uid => uid !== currentUser.uid);
+          const unreadCount = chat.unreadCounts?.[currentUser.uid] || 0;
+          totalUnread += unreadCount;
 
           if (partnerId) {
              const partnerProfile = chat.memberProfiles[partnerId];
               if (partnerProfile) {
                  chatsData.push({
                     ...chat,
-                    id: chatDoc.id,
+                    unreadCount,
                     partner: {
                         uid: partnerId,
                         username: partnerProfile.username,
@@ -77,8 +85,13 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
               }
           }
       }
+      
+      if (totalUnread > 0) {
+        document.title = `(${totalUnread}) SiraChat`;
+      } else {
+        document.title = 'SiraChat';
+      }
 
-      // Pengurutan dilakukan di sisi klien setelah data diterima
       chatsData.sort((a, b) => {
         const timeA = a.lastMessageTimestamp?.toDate?.().getTime() || 0;
         const timeB = b.lastMessageTimestamp?.toDate?.().getTime() || 0;
@@ -146,6 +159,7 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
           createdAt: serverTimestamp(),
           lastMessage: null,
           lastMessageTimestamp: null,
+          unreadCounts: { [currentUser.uid]: 0, [partner.uid]: 0 },
         });
         onChatSelect(newChatRef.id)
       }
@@ -231,6 +245,8 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
                             name={chat.partner.username}
                             lastMessage={chat.lastMessage || `Mulai percakapan...`}
                             time={formatTimestamp(chat.lastMessageTimestamp)}
+                            unreadCount={chat.unreadCount}
+                            isActive={pathname === `/chat/${chat.id}`}
                         />
                       </div>
                     )) : (

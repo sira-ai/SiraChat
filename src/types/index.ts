@@ -24,7 +24,8 @@ export type UserProfile = {
     username: string;
     email: string;
     avatarUrl?: string;
-    status?: string;
+    status?: 'online' | 'offline';
+    lastSeen?: Timestamp | Date | string;
     createdAt?: Date | string;
     role?: 'user' | 'admin';
 }
@@ -44,4 +45,5 @@ export type Chat = {
     lastMessage?: string | null;
     lastMessageTimestamp?: Timestamp | null;
     createdAt: Timestamp;
+    unreadCounts?: { [uid: string]: number };
 }

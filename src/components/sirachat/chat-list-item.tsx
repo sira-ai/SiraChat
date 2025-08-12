@@ -1,11 +1,8 @@
-
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { BellOff, Globe } from "lucide-react";
-import Image from "next/image";
 
 type ChatListItemProps = {
   avatar: string;
@@ -13,9 +10,7 @@ type ChatListItemProps = {
   lastMessage: string;
   time: string;
   unreadCount?: number;
-  isMuted?: boolean;
-  isTyping?: boolean;
-  isGlobal?: boolean;
+  isActive?: boolean;
   dataAiHint?: string;
 };
 
@@ -25,28 +20,23 @@ export default function ChatListItem({
   lastMessage,
   time,
   unreadCount = 0,
-  isMuted = false,
-  isTyping = false,
-  isGlobal = false,
+  isActive = false,
   dataAiHint
 }: ChatListItemProps) {
   const hasUnread = unreadCount > 0;
 
   return (
-    <div className="flex items-center gap-3 p-3 hover:bg-muted transition-colors cursor-pointer">
+    <div className={cn(
+        "flex items-center gap-3 p-3 transition-colors cursor-pointer",
+        isActive ? "bg-muted" : "hover:bg-muted/50"
+    )}>
       <Avatar className="h-14 w-14 flex-shrink-0">
-        {isGlobal ? (
-          <div className="w-full h-full flex items-center justify-center rounded-full bg-primary/20 text-primary">
-            <Globe className="h-8 w-8" />
-          </div>
-        ) : (
           <>
             <AvatarImage src={avatar} alt={name} data-ai-hint={dataAiHint}/>
             <AvatarFallback className="text-xl bg-primary text-primary-foreground">
               {name.charAt(0).toUpperCase()}
             </AvatarFallback>
           </>
-        )}
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
@@ -56,15 +46,14 @@ export default function ChatListItem({
         <div className="flex items-center justify-between mt-1">
           <p className={cn(
             "text-sm truncate",
-            isTyping ? "text-primary" : "text-muted-foreground"
+            hasUnread ? "text-foreground font-bold" : "text-muted-foreground"
           )}>
             {lastMessage}
           </p>
           <div className="flex items-center gap-1.5 ml-2">
-            {isMuted && <BellOff className="h-4 w-4 text-muted-foreground" />}
             {hasUnread && (
-              <Badge className="h-6 min-w-6 flex items-center justify-center rounded-full bg-primary text-primary-foreground">
-                {unreadCount}
+              <Badge className="h-5 min-w-5 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
+                {unreadCount > 9 ? '9+' : unreadCount}
               </Badge>
             )}
           </div>

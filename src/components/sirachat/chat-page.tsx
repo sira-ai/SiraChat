@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Message, UserProfile, TypingStatus, Chat } from "@/types";
 import { db } from "@/lib/firebase"; 
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, writeBatch, getDocs } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, doc, getDoc, updateDoc, writeBatch, getDocs, increment } from "firebase/firestore";
 import MessageList from "./message-list";
 import MessageInput from "./message-input";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from "date-fns";
+import { id } from 'date-fns/locale';
 
 type ChatPageProps = {
   chatId: string;
@@ -77,6 +79,17 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
       console.error("Could not fetch user profile, possibly offline.", e);
     }
   }, [currentUser, chatPartner]);
+
+  // Reset unread count when chat is opened
+  useEffect(() => {
+    if (chatId && currentUser) {
+      const chatRef = doc(db, 'chats', chatId);
+      updateDoc(chatRef, {
+        [`unreadCounts.${currentUser.uid}`]: 0
+      }).catch(err => console.log("Failed to clear unread count, maybe field doesn't exist yet."));
+    }
+  }, [chatId, currentUser]);
+
 
   useEffect(() => {
     if (!currentUser || !chatId) {
@@ -132,20 +145,10 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
             const chatData = chatSnap.data() as Chat;
             const partnerId = chatData.members.find((id: string) => id !== currentUser.uid);
             if(partnerId) {
-                const partnerProfile = chatData.memberProfiles[partnerId];
-                if (partnerProfile) {
-                    setChatPartner({
-                        uid: partnerId,
-                        username: partnerProfile.username,
-                        avatarUrl: partnerProfile.avatarUrl,
-                        email: ''
-                    });
-                } else {
-                    const userRef = doc(db, 'users', partnerId);
-                    const userSnap = await getDoc(userRef);
-                    if (userSnap.exists()){
-                        setChatPartner(userSnap.data() as UserProfile);
-                    }
+                const userRef = doc(db, 'users', partnerId);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()){
+                    setChatPartner(userSnap.data() as UserProfile);
                 }
             }
         } else {
@@ -164,7 +167,7 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
   }, [currentUser, chatId, router, toast]);
 
   const handleSendMessage = async (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => {
-    if (!currentUser || !chatId) return;
+    if (!currentUser || !chatId || !chatPartner) return;
     if (message.trim() === '' && !attachmentUrl) return;
 
     if (editingMessage) {
@@ -212,7 +215,9 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
       
       await updateDoc(chatRef, {
           lastMessage: lastMessageText,
-          lastMessageTimestamp: serverTimestamp()
+          lastMessageTimestamp: serverTimestamp(),
+          [`unreadCounts.${chatPartner.uid}`]: increment(1),
+          [`unreadCounts.${currentUser.uid}`]: 0,
       });
       
     } catch (error) {
@@ -286,12 +291,21 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
     }
   }
 
-  const getTypingIndicatorText = () => {
+  const getPartnerStatus = () => {
     if (typingUsers.length > 0) {
         const users = typingUsers.slice(0, 2).join(', ');
         return `${users} sedang mengetik...`;
     }
-    return chatPartner ? "Online" : "";
+    if (chatPartner?.status === 'online') {
+        return "Online";
+    }
+    if (chatPartner?.lastSeen) {
+        const lastSeenDate = (chatPartner.lastSeen as Timestamp)?.toDate() || new Date(chatPartner.lastSeen as string);
+        if(!isNaN(lastSeenDate.getTime())) {
+            return `Terakhir dilihat ${formatDistanceToNow(lastSeenDate, { addSuffix: true, locale: id })}`;
+        }
+    }
+    return "Offline";
   }
   
   const currentChatName = chatPartner?.username || "Memuat Obrolan...";
@@ -352,7 +366,7 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
             <div className="min-w-0">
               <h1 className="text-lg font-bold font-headline text-foreground leading-tight truncate cursor-pointer" onClick={() => handleUserSelect(chatPartner?.uid!)}>{currentChatName}</h1>
               <p className="text-sm text-primary truncate">
-                {getTypingIndicatorText()}
+                {getPartnerStatus()}
               </p>
             </div>
         </div>

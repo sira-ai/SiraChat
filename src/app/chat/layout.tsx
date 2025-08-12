@@ -1,18 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type { UserProfile } from "@/types";
-import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
-import { LogOut, User } from "lucide-react";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
+import { LogOut } from "lucide-react";
 import ChatListContent from "@/components/sirachat/chat-list-content";
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useIsMobile } from "@/hooks/use-mobile";
-import ChatListPage from "@/components/sirachat/chat-list-page";
 import UserProfileDialog from "@/components/sirachat/user-profile-dialog";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function ChatLayout({
@@ -23,19 +21,32 @@ export default function ChatLayout({
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const isMobile = useIsMobile();
 
   // Dialog state
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
 
+  const updateUserPresence = useCallback(async (user: UserProfile | null, status: 'online' | 'offline') => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        status: status,
+        lastSeen: serverTimestamp()
+      });
+    } catch (error) {
+      console.error("Failed to update user presence:", error);
+    }
+  }, []);
+  
   useEffect(() => {
     const storedUser = localStorage.getItem('sira-chat-user');
     let unsubscribe: (() => void) | null = null;
+    let userData: UserProfile | null = null;
 
     if (storedUser) {
-      const userData: UserProfile = JSON.parse(storedUser);
+      userData = JSON.parse(storedUser);
       
-      const userRef = doc(db, 'users', userData.uid);
+      const userRef = doc(db, 'users', userData!.uid);
       unsubscribe = onSnapshot(userRef, (doc) => {
         if(doc.exists()) {
           const updatedUser = doc.data() as UserProfile;
@@ -46,21 +57,34 @@ export default function ChatLayout({
         console.error("Failed to listen to user updates:", error);
         setCurrentUser(userData);
       });
+      
+      updateUserPresence(userData, 'online');
 
     } else {
       router.push('/');
     }
     setIsLoading(false);
 
+    const handleBeforeUnload = () => {
+        if (userData) {
+            updateUserPresence(userData, 'offline');
+        }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
         if (unsubscribe) {
             unsubscribe();
         }
+        handleBeforeUnload(); // Set offline when component unmounts
+        window.removeEventListener('beforeunload', handleBeforeUnload);
     }
-  }, [router]);
+  }, [router, updateUserPresence]);
 
 
   const handleLogout = () => {
+    updateUserPresence(currentUser, 'offline');
     localStorage.removeItem('sira-chat-user');
     setCurrentUser(null);
     router.push('/');
