@@ -1,20 +1,20 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import type { UserProfile } from "@/types";
-import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
-import { LogOut } from "lucide-react";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
+import { LogOut, User } from "lucide-react";
 import ChatListContent from "@/components/sirachat/chat-list-content";
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import UserProfileDialog from "@/components/sirachat/user-profile-dialog";
-import { doc, onSnapshot, updateDoc, serverTimestamp, writeBatch, collection, query, where, getDocs } from "firebase/firestore";
-import { db, storage } from "@/lib/firebase";
-import { ref, deleteObject } from "firebase/storage";
 import { useIsMobile } from "@/hooks/use-mobile";
+import UserProfileDialog from "@/components/sirachat/user-profile-dialog";
+import { doc, onSnapshot, updateDoc, writeBatch, collection, query, where, getDocs } from "firebase/firestore";
+import { db, storage } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { ref, deleteObject } from "firebase/storage";
 
 export default function ChatLayout({
   children,
@@ -30,98 +30,55 @@ export default function ChatLayout({
   // Dialog state
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
 
-  const updateUserPresence = useCallback(async (user: UserProfile | null, status: 'online' | 'offline') => {
-    if (!user) return;
-    try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        status: status,
-        lastSeen: serverTimestamp()
-      });
-    } catch (error) {
-      console.error("Failed to update user presence:", error);
-    }
-  }, []);
-  
   useEffect(() => {
     const storedUser = localStorage.getItem('sira-chat-user');
     let unsubscribe: (() => void) | null = null;
-    let userData: UserProfile | null = null;
 
     if (storedUser) {
-      try {
-        userData = JSON.parse(storedUser);
-      } catch (error) {
-        console.error("Failed to parse user from localStorage", error);
-        localStorage.removeItem('sira-chat-user');
-        router.push('/');
-        return;
-      }
+      const userData: UserProfile = JSON.parse(storedUser);
       
-      const userRef = doc(db, 'users', userData!.uid);
+      const userRef = doc(db, 'users', userData.uid);
       unsubscribe = onSnapshot(userRef, (doc) => {
         if(doc.exists()) {
           const updatedUser = doc.data() as UserProfile;
           setCurrentUser(updatedUser);
           localStorage.setItem('sira-chat-user', JSON.stringify(updatedUser));
         } else {
-            console.log("User document not found. Logging out.");
-            handleLogout(false);
+          // If user doc is deleted (e.g. by another client), log out
+          handleLogout(false);
         }
       }, (error) => {
         console.error("Failed to listen to user updates:", error);
         setCurrentUser(userData);
       });
-      
-      updateUserPresence(userData, 'online');
-      setIsLoading(false);
 
     } else {
       router.push('/');
-      setIsLoading(false);
     }
-
-    const handleBeforeUnload = () => {
-        if (userData) {
-            // This is a sync operation, but Firebase SDK handles it in the background
-            navigator.sendBeacon ? navigator.sendBeacon('/api/leave', JSON.stringify({uid: userData.uid})) : updateUserPresence(userData, 'offline');
-        }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    setIsLoading(false);
 
     return () => {
         if (unsubscribe) {
             unsubscribe();
         }
-        // Set offline when component unmounts (e.g., navigating away)
-        if (currentUser) {
-            updateUserPresence(currentUser, 'offline');
-        }
-        window.removeEventListener('beforeunload', handleBeforeUnload);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, updateUserPresence]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
 
   const handleLogout = (showToast = true) => {
-    if(currentUser) {
-       updateUserPresence(currentUser, 'offline');
-    }
     localStorage.removeItem('sira-chat-user');
     setCurrentUser(null);
     if(showToast) {
-        toast({ title: "Anda telah keluar" });
+        toast({ title: "Anda telah keluar." });
     }
     router.push('/');
   }
-  
+
   const handleDeleteAccount = async () => {
     if (!currentUser) return;
 
     try {
-        await updateUserPresence(currentUser, 'offline');
-
         const batch = writeBatch(db);
 
         // 1. Find and delete all chats the user is a member of
@@ -137,14 +94,14 @@ export default function ChatLayout({
             batch.delete(chatDoc.ref);
         }
 
-        // 2. Delete user's avatar from Storage
+        // 2. Delete user's avatar from Storage if it exists
         if (currentUser.avatarUrl && currentUser.avatarUrl.includes('firebasestorage')) {
-            try {
-                const avatarRef = ref(storage, `avatars/${currentUser.uid}/avatar.png`);
+             try {
+                const avatarRef = ref(storage, currentUser.avatarUrl);
                 await deleteObject(avatarRef);
             } catch (storageError: any) {
+                // If the object doesn't exist, we can ignore the error.
                 if (storageError.code !== 'storage/object-not-found') {
-                    // Log but don't block account deletion if avatar fails
                     console.error("Could not delete avatar:", storageError);
                 }
             }
@@ -168,11 +125,7 @@ export default function ChatLayout({
 
 
   const handleChatSelect = (chatId: string) => {
-    if(isMobile){
-       const mainContent = document.querySelector('main');
-       if(mainContent) mainContent.scrollTop = 0;
-    }
-    router.push(`/chat/${chatId}`);
+    router.push(chatId === 'global' ? '/chat/global' : `/chat/${chatId}`);
   };
 
   const openMyProfile = () => {
@@ -210,31 +163,38 @@ export default function ChatLayout({
   return (
     <>
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-background overflow-hidden">
-        {!isMobile && (
-            <Sidebar className="w-full max-w-xs border-r flex">
-                <SidebarContent className="p-0">
-                    <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
-                </SidebarContent>
-                <SidebarFooter className="p-2">
-                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-card transition-colors cursor-pointer" onClick={openMyProfile}>
-                        <Avatar className="h-10 w-10">
-                            <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
-                            <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                            <p className="font-bold truncate">{currentUser.username}</p>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
-                            <LogOut className="h-5 w-5" />
-                        </Button>
+      <div className="flex h-screen w-screen bg-background">
+        <Sidebar className="w-full max-w-xs border-r hidden md:flex">
+            <SidebarContent className="p-0">
+                <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
+            </SidebarContent>
+            <SidebarFooter className="p-2">
+                <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-card transition-colors cursor-pointer" onClick={openMyProfile}>
+                    <Avatar className="h-10 w-10">
+                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
+                        <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-bold truncate">{currentUser.username}</p>
                     </div>
-                </SidebarFooter>
-            </Sidebar>
-        )}
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
+                        <LogOut className="h-5 w-5" />
+                    </Button>
+                </div>
+            </SidebarFooter>
+        </Sidebar>
 
         <main className="flex-1 h-screen">
-          {children}
+          {isMobile ? children : (
+            <div className="h-full w-full flex">
+              <div className="w-full max-w-xs border-r xl:flex flex-col bg-background hidden">
+                 <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
+              </div>
+              <div className="flex-1 h-screen">
+                {children}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </SidebarProvider>
@@ -243,8 +203,8 @@ export default function ChatLayout({
         isMyProfile={true}
         open={isProfileDialogOpen}
         onOpenChange={setIsProfileDialogOpen}
-        onLogout={() => { setIsProfileDialogOpen(false); handleLogout();}}
-        onDeleteAccount={() => { setIsProfileDialogOpen(false); handleDeleteAccount();}}
+        onLogout={() => { setIsProfileDialogOpen(false); handleLogout(); }}
+        onDeleteAccount={() => { setIsProfileDialogOpen(false); handleDeleteAccount(); }}
     />
     </>
   );

@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
+  DialogDescription
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -20,7 +20,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AtSign, CalendarDays, Edit, Loader2, Save, User as UserIcon, X, Crop, LogOut, Trash2 } from "lucide-react";
 import { format } from 'date-fns';
@@ -33,7 +32,6 @@ import { db, storage } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Label } from "../ui/label";
-import { Separator } from "../ui/separator";
 
 import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -43,8 +41,8 @@ type UserProfileDialogProps = {
   isMyProfile: boolean;
   open?: boolean;
   onOpenChange: (open: boolean) => void;
-  onLogout: () => void;
-  onDeleteAccount: () => Promise<void>;
+  onLogout?: () => void;
+  onDeleteAccount?: () => void;
 };
 
 // Helper to center the crop
@@ -136,7 +134,6 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
   const resetState = () => {
     setIsEditing(false);
     setIsLoading(false);
-    setIsDeleting(false);
     setImgSrc('');
     setCrop(undefined);
     setCompletedCrop(undefined);
@@ -228,8 +225,10 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
-    await onDeleteAccount();
-    // No need to set isDeleting false as component will unmount
+    if(onDeleteAccount) {
+      await onDeleteAccount();
+    }
+    setIsDeleting(false);
   }
   
   const getJoinDate = () => {
@@ -285,7 +284,7 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
                 <DialogHeader className="items-center text-center -mb-2 relative">
                     {isMyProfile && !imgSrc && (
                         <div className="absolute top-0 right-0">
-                            <Button variant="ghost" size="icon" onClick={handleEditToggle} disabled={isLoading || isDeleting}>
+                            <Button variant="ghost" size="icon" onClick={handleEditToggle} disabled={isLoading}>
                                 {isEditing ? <X className="h-5 w-5" /> : <Edit className="h-5 w-5" />}
                             </Button>
                         </div>
@@ -354,40 +353,6 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
                             </div>
                         </div>
                     </div>
-
-                    {isMyProfile && !isEditing && (
-                        <div className="space-y-2">
-                             <Button variant="outline" className="w-full" onClick={onLogout}>
-                                <LogOut className="mr-2 h-4 w-4" /> Keluar
-                            </Button>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" className="w-full">
-                                        <Trash2 className="mr-2 h-4 w-4" /> Hapus Akun
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Tindakan ini tidak dapat dibatalkan. Ini akan secara permanen menghapus akun Anda, semua obrolan, dan pesan Anda dari server kami.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
-                                        <AlertDialogAction 
-                                            onClick={handleDeleteConfirm} 
-                                            disabled={isDeleting}
-                                            className="bg-destructive hover:bg-destructive/90"
-                                        >
-                                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                                            Ya, Hapus Akun Saya
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                    )}
                 </div>
                 {isEditing && (
                     <DialogFooter>
@@ -395,6 +360,39 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                             Simpan Perubahan
                         </Button>
+                    </DialogFooter>
+                )}
+                 {isMyProfile && !isEditing && (
+                    <DialogFooter className="flex-col gap-2">
+                        <Button variant="outline" className="w-full" onClick={onLogout}>
+                            <LogOut className="mr-2 h-4 w-4" /> Keluar
+                        </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" className="w-full">
+                                    <Trash2 className="mr-2 h-4 w-4" /> Hapus Akun
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Tindakan ini tidak dapat dibatalkan. Ini akan secara permanen menghapus akun Anda dan semua data terkait dari server kami.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                        onClick={handleDeleteConfirm} 
+                                        disabled={isDeleting}
+                                        className="bg-destructive hover:bg-destructive/90"
+                                    >
+                                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                        Ya, Hapus Akun Saya
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </DialogFooter>
                 )}
             </>
