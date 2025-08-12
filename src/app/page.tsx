@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import AuthPage from '@/components/sirachat/auth-page';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -28,6 +27,7 @@ export default function Home() {
   const handleCreateUser = async (username: string) => {
     setIsLoading(true);
 
+    // We create a predictable UID, but in a real app, Firebase Auth UIDs are preferred.
     const uid = `user_${username.toLowerCase().replace(/\s+/g, '_')}`;
     const userRef = doc(db, 'users', uid);
     
@@ -49,13 +49,16 @@ export default function Home() {
           lastSeen: serverTimestamp(),
       });
       
-      localStorage.setItem('sira-chat-user', JSON.stringify(newProfile));
+      // Store the full profile to be used immediately by the chat layout
+      localStorage.setItem('sira-chat-user', JSON.stringify({ ...newProfile, status: 'online' }));
       router.push('/chat');
 
     } catch (error) {
        console.error("Could not create user profile in Firestore.", error);
-       // Handle error, maybe show a toast to the user
+       setIsLoading(false);
+       // Here you would show a toast to the user informing them of the failure.
     } 
+    // No need to setIsLoading(false) because the redirect will unmount this component.
   };
 
   if (isLoading) {
@@ -70,5 +73,6 @@ export default function Home() {
     );
   }
 
+  // If not loading and not redirected, show AuthPage
   return <AuthPage onCreateUser={handleCreateUser} />;
 }

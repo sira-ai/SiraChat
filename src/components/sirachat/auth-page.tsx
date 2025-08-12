@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,7 +20,6 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useDebounce } from "use-debounce";
-import { cn } from "@/lib/utils";
 
 const loginSchema = z.object({
   username: z.string().trim().min(3, "Nama pengguna minimal 3 karakter.").max(20, "Nama pengguna maksimal 20 karakter.").regex(/^[a-zA-Z0-9_]+$/, "Nama pengguna hanya boleh berisi huruf, angka, dan garis bawah."),
@@ -41,7 +39,7 @@ export default function AuthPage({ onCreateUser }: AuthPageProps) {
     const loginForm = useForm<z.infer<typeof loginSchema>>({
         resolver: zodResolver(loginSchema),
         defaultValues: { username: "" },
-        mode: "onChange"
+        mode: "onChange" // Important for real-time validation feedback
     });
     
     const watchedUsername = loginForm.watch("username");
@@ -55,10 +53,11 @@ export default function AuthPage({ onCreateUser }: AuthPageProps) {
         setUsernameStatus('checking');
         try {
             const usersRef = collection(db, "users");
-            // Firestore queries are case-sensitive. We store a lowercase version for checking.
-            // A more robust solution would involve a separate field for lowercase username.
-            // For this implementation, we will fetch and compare. This is less scalable.
             
+            // Firestore queries are case-sensitive. A common workaround for case-insensitive
+            // search is to query a range, but this is not foolproof for all character sets.
+            // The most robust solution is to store a normalized (e.g., lowercase) version of the
+            // username and query against that. For this app, we'll fetch and compare client-side.
             const q = query(usersRef, where("username", ">=", username), where("username", "<=", username + '\uf8ff'));
             const querySnapshot = await getDocs(q);
 
@@ -74,7 +73,7 @@ export default function AuthPage({ onCreateUser }: AuthPageProps) {
                 loginForm.setError("username", { type: "manual", message: "Nama pengguna ini sudah digunakan." });
             } else {
                 setUsernameStatus('available');
-                loginForm.clearErrors("username");
+                loginForm.clearErrors("username"); // Clear error if it becomes available
             }
         } catch (error) {
             console.error("Error checking username:", error);
@@ -85,10 +84,11 @@ export default function AuthPage({ onCreateUser }: AuthPageProps) {
 
 
     useEffect(() => {
-        // Clear status if input is cleared or invalid
+        // Clear status if input is cleared or becomes invalid
         if (!debouncedUsername || loginForm.getFieldState('username').invalid) {
             setUsernameStatus('idle');
-            loginForm.clearErrors("username");
+            // Don't clear manual errors, only validation errors.
+            if(loginForm.getValues("username") === "") loginForm.clearErrors("username");
             return;
         }
         checkUsernameAvailability(debouncedUsername);
@@ -161,7 +161,7 @@ export default function AuthPage({ onCreateUser }: AuthPageProps) {
                             <FormLabel>Nama Pengguna</FormLabel>
                             <div className="relative">
                                 <FormControl>
-                                    <Input placeholder="pilih nama unik" {...field} disabled={isSubmitting} />
+                                    <Input placeholder="pilih nama unik" {...field} disabled={isSubmitting} autoComplete="off" />
                                 </FormControl>
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                                     {renderUsernameFeedback()}
