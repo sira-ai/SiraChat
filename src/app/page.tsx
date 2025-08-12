@@ -25,50 +25,37 @@ export default function Home() {
     }
   }, [router]);
 
-  const handleLogin = async (username: string) => {
+  const handleCreateUser = async (username: string) => {
     setIsLoading(true);
 
     const uid = `user_${username.toLowerCase().replace(/\s+/g, '_')}`;
     const userRef = doc(db, 'users', uid);
     
     try {
-      const userSnap = await getDoc(userRef);
-      let userProfile: UserProfile;
+      // We assume username is already validated for availability by AuthPage
+      const newProfile: UserProfile = {
+        uid: uid,
+        username: username,
+        email: `${username.toLowerCase()}@sirachat.app`,
+        createdAt: new Date().toISOString(),
+        avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
+      };
 
-      if (userSnap.exists()) {
-        userProfile = userSnap.data() as UserProfile;
-      } else {
-        const newProfile: UserProfile = {
-          uid: uid,
-          username: username,
-          email: `${username.toLowerCase()}@sirachat.app`,
-          createdAt: new Date().toISOString(),
-          avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
-        };
-        await setDoc(userRef, {
-            ...newProfile,
-            createdAt: serverTimestamp()
-        });
-        userProfile = newProfile;
-      }
-
-      localStorage.setItem('sira-chat-user', JSON.stringify(userProfile));
+      await setDoc(userRef, {
+          ...newProfile,
+          createdAt: serverTimestamp(),
+          // Default status for new user
+          status: 'online',
+          lastSeen: serverTimestamp(),
+      });
+      
+      localStorage.setItem('sira-chat-user', JSON.stringify(newProfile));
       router.push('/chat');
 
     } catch (error) {
-       console.error("Could not verify or create user profile in Firestore. Operating in offline mode.", error);
-       const localProfile: UserProfile = {
-         uid: uid,
-         username: username,
-         email: `${username.toLowerCase()}@sirachat.app`,
-         createdAt: new Date().toISOString(),
-         avatarUrl: `https://placehold.co/100x100.png?text=${username.charAt(0).toUpperCase()}`
-       };
-       localStorage.setItem('sira-chat-user', JSON.stringify(localProfile));
-       router.push('/chat');
+       console.error("Could not create user profile in Firestore.", error);
+       // Handle error, maybe show a toast to the user
     } 
-    // We don't set loading to false here because the redirect will change the page.
-    // If we did, there might be a flash of the AuthPage before redirecting.
   };
 
   if (isLoading) {
@@ -83,6 +70,5 @@ export default function Home() {
     );
   }
 
-  // If not loading and not redirected, show AuthPage
-  return <AuthPage onLogin={handleLogin} />;
+  return <AuthPage onCreateUser={handleCreateUser} />;
 }

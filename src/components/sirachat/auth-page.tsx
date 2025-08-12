@@ -15,53 +15,125 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, LogIn, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { User, LogIn, Loader2, Check, X } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { useDebounce } from "use-debounce";
+import { cn } from "@/lib/utils";
 
 const loginSchema = z.object({
   username: z.string().trim().min(3, "Nama pengguna minimal 3 karakter.").max(20, "Nama pengguna maksimal 20 karakter.").regex(/^[a-zA-Z0-9_]+$/, "Nama pengguna hanya boleh berisi huruf, angka, dan garis bawah."),
 });
 
 type AuthPageProps = {
-    onLogin: (username: string) => Promise<void>;
+    onCreateUser: (username: string) => Promise<void>;
 }
 
-export default function AuthPage({ onLogin }: AuthPageProps) {
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken';
+
+export default function AuthPage({ onCreateUser }: AuthPageProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
     const { toast } = useToast();
 
     const loginForm = useForm<z.infer<typeof loginSchema>>({
         resolver: zodResolver(loginSchema),
         defaultValues: { username: "" },
+        mode: "onChange"
     });
+    
+    const watchedUsername = loginForm.watch("username");
+    const [debouncedUsername] = useDebounce(watchedUsername, 500);
+
+    const checkUsernameAvailability = useCallback(async (username: string) => {
+        if (!username || loginForm.getFieldState('username').invalid) {
+            setUsernameStatus('idle');
+            return;
+        }
+        setUsernameStatus('checking');
+        try {
+            const usersRef = collection(db, "users");
+            // Firestore queries are case-sensitive. We store a lowercase version for checking.
+            // A more robust solution would involve a separate field for lowercase username.
+            // For this implementation, we will fetch and compare. This is less scalable.
+            
+            const q = query(usersRef, where("username", ">=", username), where("username", "<=", username + '\uf8ff'));
+            const querySnapshot = await getDocs(q);
+
+            let isTaken = false;
+            querySnapshot.forEach((doc) => {
+                if(doc.data().username.toLowerCase() === username.toLowerCase()){
+                    isTaken = true;
+                }
+            });
+
+            if (isTaken) {
+                setUsernameStatus('taken');
+                loginForm.setError("username", { type: "manual", message: "Nama pengguna ini sudah digunakan." });
+            } else {
+                setUsernameStatus('available');
+                loginForm.clearErrors("username");
+            }
+        } catch (error) {
+            console.error("Error checking username:", error);
+            setUsernameStatus('idle'); // Reset on error
+            toast({ title: "Gagal memeriksa nama pengguna", description: "Periksa koneksi internet Anda.", variant: "destructive" });
+        }
+    }, [loginForm, toast]);
+
+
+    useEffect(() => {
+        // Clear status if input is cleared or invalid
+        if (!debouncedUsername || loginForm.getFieldState('username').invalid) {
+            setUsernameStatus('idle');
+            loginForm.clearErrors("username");
+            return;
+        }
+        checkUsernameAvailability(debouncedUsername);
+    }, [debouncedUsername, checkUsernameAvailability, loginForm]);
+
 
     async function onLoginSubmit(values: z.infer<typeof loginSchema>) {
+        if (usernameStatus !== 'available') {
+            toast({ title: "Nama pengguna tidak tersedia", description: "Silakan pilih nama pengguna lain.", variant: "destructive" });
+            return;
+        }
+
         setIsSubmitting(true);
         try {
-            await onLogin(values.username);
-            // The state change in page.tsx will handle the view change.
+            await onCreateUser(values.username);
             toast({
-              title: "Login Berhasil!",
+              title: "Pendaftaran Berhasil!",
               description: `Selamat datang, ${values.username}!`,
             });
         } catch (error: any) {
-             console.error("Error during login process:", error);
-             loginForm.setError("username", {
-                type: "manual",
-                message: "Terjadi kesalahan saat masuk.",
-            });
+             console.error("Error during user creation:", error);
              toast({
-                title: "Gagal Masuk",
+                title: "Gagal Membuat Akun",
                 description: "Terjadi kesalahan yang tidak terduga. Silakan coba lagi.",
                 variant: "destructive",
             });
         } finally {
-            // This now correctly ensures the loading state is always reset
             setIsSubmitting(false);
         }
     }
 
+    const renderUsernameFeedback = () => {
+        switch (usernameStatus) {
+            case 'checking':
+                return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
+            case 'available':
+                return <Check className="h-5 w-5 text-green-500" />;
+            case 'taken':
+                return <X className="h-5 w-5 text-destructive" />;
+            default:
+                return null;
+        }
+    }
+
+    const isSubmitDisabled = isSubmitting || usernameStatus !== 'available';
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -87,14 +159,19 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Nama Pengguna</FormLabel>
-                            <FormControl>
-                                <Input placeholder="pilih nama unik" {...field} disabled={isSubmitting} />
-                            </FormControl>
+                            <div className="relative">
+                                <FormControl>
+                                    <Input placeholder="pilih nama unik" {...field} disabled={isSubmitting} />
+                                </FormControl>
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                    {renderUsernameFeedback()}
+                                </div>
+                            </div>
                             <FormMessage />
                             </FormItem>
                         )}
                     />
-                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    <Button type="submit" className="w-full" disabled={isSubmitDisabled}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isSubmitting ? 'Memproses...' : 'Lanjutkan'}
                         <LogIn className="ml-2 h-4 w-4"/>
