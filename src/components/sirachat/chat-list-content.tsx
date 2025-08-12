@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
 import ChatListItem from "./chat-list-item";
 import { ScrollArea } from "../ui/scroll-area";
-import { collection, query, onSnapshot, where, getDocs, addDoc, serverTimestamp, doc, limit } from "firebase/firestore";
+import { collection, query, onSnapshot, where, getDocs, addDoc, serverTimestamp, doc, limit, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { UserProfile, Chat } from "@/types";
 import { Skeleton } from "../ui/skeleton";
