@@ -36,7 +36,7 @@ const formSchema = z.object({
 });
 
 type MessageInputProps = {
-  onSendMessage: (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => void;
+  onSendMessage: (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file' | 'sticker', fileName?: string) => void;
   currentUser: UserProfile | null;
   chatId: string;
   editingMessage: Message | null;
@@ -53,6 +53,20 @@ type UploadProgress = {
 // Debounce timer for typing indicator
 let typingTimer: NodeJS.Timeout;
 
+let emojiData: any = null;
+async function getEmojiData() {
+    if (!emojiData) {
+         try {
+            const response = await fetch('https://cdn.jsdelivr.net/npm/@emoji-mart/data/sets/14/apple.json');
+            emojiData = await response.json();
+        } catch (error) {
+            console.error("Failed to load emoji data", error);
+        }
+    }
+    return emojiData;
+}
+
+
 export default function MessageInput({ onSendMessage, currentUser, chatId, editingMessage, onCancelEdit, replyingToMessage, onCancelReply }: MessageInputProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
@@ -67,22 +81,15 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
   const [isEmojiSheetOpen, setIsEmojiSheetOpen] = useState(false);
   const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false);
   const [upload, setUpload] = useState<UploadProgress | null>(null);
-  const [emojiData, setEmojiData] = useState(null);
+  const [isEmojiDataLoading, setIsEmojiDataLoading] = useState(false);
+  
   const hasText = !!form.watch("message");
   const isEditing = !!editingMessage;
   const isReplying = !!replyingToMessage;
 
   useEffect(() => {
-    async function loadEmojiData() {
-        try {
-            const response = await fetch('https://cdn.jsdelivr.net/npm/@emoji-mart/data/sets/14/apple.json');
-            const data = await response.json();
-            setEmojiData(data);
-        } catch (error) {
-            console.error("Failed to load emoji data", error);
-        }
-    }
-    loadEmojiData();
+    // Preload emoji data when the component mounts, if not already loaded.
+    getEmojiData();
   }, []);
 
   useEffect(() => {
@@ -143,8 +150,8 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
   }, [currentUser, chatId]);
 
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (values.message.trim() || upload) {
+  async function onTextSubmit(values: z.infer<typeof formSchema>) {
+    if (values.message.trim()) {
       onSendMessage(values.message);
       if (!isEditing) {
         form.reset({ message: '' });
@@ -216,16 +223,22 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         if ((hasText || isEditing) && !upload) {
-          form.handleSubmit(onSubmit)();
+          form.handleSubmit(onTextSubmit)();
         }
     }
   }
   
   const handleEmojiSelect = (emoji: any) => {
-    const currentMessage = form.getValues("message");
-    form.setValue("message", currentMessage + emoji.native);
-    textareaRef.current?.focus();
-    setTimeout(adjustTextareaHeight, 0);
+    onSendMessage(emoji.native, undefined, 'sticker');
+  }
+
+  const openEmojiSheet = async () => {
+    setIsEmojiSheetOpen(true);
+    if(!emojiData) {
+        setIsEmojiDataLoading(true);
+        await getEmojiData();
+        setIsEmojiDataLoading(false);
+    }
   }
 
   const cancelAllModes = () => {
@@ -237,6 +250,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
     if(!replyingToMessage) return "";
     if (replyingToMessage.text) return replyingToMessage.text;
     if (replyingToMessage.attachmentType === 'image') return "Gambar";
+    if (replyingToMessage.attachmentType === 'sticker') return `Stiker ${replyingToMessage.text}`;
     if (replyingToMessage.attachmentType === 'file') return "Dokumen";
     return "";
   }
@@ -273,18 +287,16 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
         </div>
       )}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2 p-2">
+        <form onSubmit={form.handleSubmit(onTextSubmit)} className="flex items-end gap-2 p-2">
           <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
             
             <Sheet open={isEmojiSheetOpen} onOpenChange={setIsEmojiSheetOpen}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" onClick={openEmojiSheet}>
                         <Smile className="h-6 w-6" />
                         <span className="sr-only">Pilih Emoji</span>
                     </Button>
-                  </SheetTrigger>
                 </TooltipTrigger>
                 <TooltipContent>
                     <p>Emoji</p>
@@ -292,22 +304,19 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
               </Tooltip>
               <SheetContent side="bottom" className="w-full h-[50vh] p-0 flex flex-col">
                   <SheetHeader className="p-4 border-b">
-                      <SheetTitle>Pilih Emoji</SheetTitle>
+                      <SheetTitle>Pilih Stiker</SheetTitle>
                   </SheetHeader>
                   <div className="flex-1">
-                    {emojiData ? (
-                        <Picker 
-                            data={emojiData} 
-                            onEmojiSelect={(emoji: any) => {
-                                handleEmojiSelect(emoji);
-                                setIsEmojiSheetOpen(false);
-                            }} 
-                            theme="dark"
-                        />
-                    ) : (
+                    {isEmojiDataLoading || !emojiData ? (
                         <div className="w-full h-full flex items-center justify-center p-4">
                             <Loader2 className="h-8 w-8 animate-spin" />
                         </div>
+                    ) : (
+                        <Picker 
+                            data={emojiData} 
+                            onEmojiSelect={handleEmojiSelect} 
+                            theme="dark"
+                        />
                     )}
                   </div>
               </SheetContent>
@@ -371,7 +380,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
 
           </div>
 
-          <Button type="submit" size="icon" disabled={(!hasText && !upload) || form.formState.isSubmitting} className="h-12 w-12 rounded-full flex-shrink-0">
+          <Button type="submit" size="icon" disabled={!hasText || form.formState.isSubmitting || !!upload} className="h-12 w-12 rounded-full flex-shrink-0">
             {isEditing ? <Check className="h-6 w-6" /> : <SendHorizonal className="h-6 w-6" />}
             <span className="sr-only">{isEditing ? "Simpan Perubahan" : "Kirim Pesan"}</span>
           </Button>

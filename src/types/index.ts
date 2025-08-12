@@ -7,7 +7,7 @@ export type Message = {
   senderId?: string; // UID
   timestamp: Timestamp | Date | string; // Allow multiple types for flexibility
   attachmentUrl?: string;
-  attachmentType?: 'image' | 'file';
+  attachmentType?: 'image' | 'file' | 'sticker';
   fileName?: string;
   isEdited?: boolean;
   isDeleted?: boolean;
@@ -15,7 +15,7 @@ export type Message = {
     messageId: string;
     sender: string;
     text: string;
-    attachmentType?: 'image' | 'file' | null;
+    attachmentType?: 'image' | 'file' | 'sticker' | null;
   } | null;
 };
 

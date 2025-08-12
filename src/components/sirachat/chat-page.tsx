@@ -166,7 +166,7 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
     }
   }, [currentUser, chatId, router, toast]);
 
-  const handleSendMessage = async (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file', fileName?: string) => {
+  const handleSendMessage = async (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file' | 'sticker', fileName?: string) => {
     if (!currentUser || !chatId || !chatPartner) return;
     if (message.trim() === '' && !attachmentUrl) return;
 
@@ -203,7 +203,9 @@ export default function ChatPage({ chatId, currentUser }: ChatPageProps) {
 
       const chatRef = doc(db, "chats", chatId);
       let lastMessageText;
-      if (message) {
+      if (attachmentType === 'sticker') {
+        lastMessageText = `Stiker: ${message}`;
+      } else if (message) {
           lastMessageText = message.length > 30 ? message.substring(0, 30) + "..." : message;
       } else if (attachmentType === 'image') {
           lastMessageText = "Gambar";

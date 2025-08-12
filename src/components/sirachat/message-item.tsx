@@ -43,7 +43,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
   const avatarUrl = isCurrentUser ? undefined : (senderProfile?.avatarUrl || partnerAvatar || `https://placehold.co/100x100.png`);
 
   const handleCopy = () => {
-    if(text && !isDeleted) {
+    if(text && !isDeleted && attachmentType !== 'sticker') {
         navigator.clipboard.writeText(text);
         toast({ title: "Teks pesan disalin" });
     }
@@ -53,13 +53,14 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
     if (!replyTo) return null;
 
     let repliedContent: React.ReactNode = replyTo.text;
-    if(!replyTo.text) {
-        if(replyTo.attachmentType === 'image') {
-            repliedContent = <span className="flex items-center gap-1.5"><ImageIcon className="h-4 w-4"/> Gambar</span>
-        } else {
-            repliedContent = <span className="flex items-center gap-1.5"><FileIcon className="h-4 w-4"/> Dokumen</span>
-        }
+    if (replyTo.attachmentType === 'sticker') {
+      repliedContent = <span className="flex items-center gap-1.5">Stiker {replyTo.text}</span>
+    } else if (replyTo.attachmentType === 'image') {
+      repliedContent = <span className="flex items-center gap-1.5"><ImageIcon className="h-4 w-4"/> Gambar</span>
+    } else if (replyTo.attachmentType === 'file') {
+      repliedContent = <span className="flex items-center gap-1.5"><FileIcon className="h-4 w-4"/> Dokumen</span>
     }
+
 
     return (
         <div className="relative bg-black/10 dark:bg-black/20 p-2 rounded-md mb-1 ml-1.5 mr-1.5 border-l-2 border-primary">
@@ -67,6 +68,15 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
             <p className="text-sm text-foreground/80 truncate">{repliedContent}</p>
         </div>
     )
+  }
+  
+  const renderSticker = () => {
+     if (attachmentType !== 'sticker') return null;
+     return (
+        <div className="text-6xl p-2">
+            {text}
+        </div>
+     )
   }
 
   const renderAttachment = () => {
@@ -107,41 +117,38 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
     return null;
   };
 
-  const MessageContent = (
-    <div className={cn("max-w-sm md:max-w-md flex flex-col", 
-          isCurrentUser ? "" : "items-start"
-      )}>
-        <div className={cn(
-          "relative rounded-xl p-1.5 pt-0.5",
-          isCurrentUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card shadow-sm border rounded-bl-none",
-           isDeleted ? "bg-muted text-muted-foreground italic" : ""
-        )}>
-           {!isCurrentUser && senderId && !isDeleted && (
-            <p className="text-sm font-bold text-accent px-1.5 pt-1 cursor-pointer" onClick={() => onUserSelect(senderId)}>{sender}</p>
-          )}
+  const MessageBubble = (
+    <div className={cn(
+        "relative rounded-xl p-1.5 pt-0.5",
+        isCurrentUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card shadow-sm border rounded-bl-none",
+        isDeleted ? "bg-muted text-muted-foreground italic" : "",
+        attachmentType === 'sticker' && !replyTo ? "bg-transparent border-0 shadow-none" : "",
+    )}>
+        {!isCurrentUser && senderId && !isDeleted && (
+        <p className="text-sm font-bold text-accent px-1.5 pt-1 cursor-pointer" onClick={() => onUserSelect(senderId)}>{sender}</p>
+        )}
 
-          {!isDeleted && renderRepliedMessage()}
-          {!isDeleted && renderAttachment()}
-          
-          {(text || isDeleted) && (
-            <div className="flex items-end gap-2 px-1.5 pb-1">
-                {text && <p className="text-base whitespace-pre-wrap break-words leading-relaxed pt-1">{text}</p>}
-                <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                {isEdited && !isDeleted && "Diedit"} {formatTimestamp(timestamp)}
-                {isCurrentUser && !isDeleted && <CheckCheck className="w-4 h-4" />}
-                </div>
+        {!isDeleted && renderRepliedMessage()}
+        {!isDeleted && renderAttachment()}
+        {!isDeleted && renderSticker()}
+        
+        {(text && attachmentType !== 'sticker' || isDeleted) && (
+        <div className="flex items-end gap-2 px-1.5 pb-1">
+            {text && <p className="text-base whitespace-pre-wrap break-words leading-relaxed pt-1">{text}</p>}
+            <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
+            {isEdited && !isDeleted && "Diedit"} {formatTimestamp(timestamp)}
+            {isCurrentUser && !isDeleted && <CheckCheck className="w-4 h-4" />}
             </div>
-          )}
-
-           {(!text && attachmentUrl && !isDeleted) && (
-             <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1 float-right clear-both px-1.5 pb-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                {formatTimestamp(timestamp)}
-                {isCurrentUser && <CheckCheck className="w-4 h-4" />}
-             </div>
-           )}
-
         </div>
-      </div>
+        )}
+
+        {((!text && attachmentUrl) || (attachmentType === 'sticker' && replyTo)) && !isDeleted && (
+            <div className={cn("text-xs select-none mt-1 self-end shrink-0 flex items-center gap-1 float-right clear-both px-1.5 pb-1", isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
+            {formatTimestamp(timestamp)}
+            {isCurrentUser && <CheckCheck className="w-4 h-4" />}
+            </div>
+        )}
+    </div>
   );
 
   return (
@@ -163,12 +170,12 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
       )}
       
        <div className={cn(
-        "absolute -top-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center bg-card border rounded-full shadow-sm",
-        isCurrentUser ? "right-0" : "left-12"
+        "absolute -top-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center bg-card border rounded-full shadow-sm z-10",
+        isCurrentUser ? "right-2" : "left-14"
        )}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-               <Button variant="ghost" size="icon" className="h-7 w-7">
+               <Button variant="ghost" size="icon" className="h-8 w-8">
                   <Reply className="h-4 w-4" />
                 </Button>
             </DropdownMenuTrigger>
@@ -178,13 +185,13 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
                 <span>Balas</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted}>
+              <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted || attachmentType === 'sticker'}>
                 <Copy className="mr-2 h-4 w-4" />
                 <span>Salin Teks Pesan</span>
               </DropdownMenuItem>
               {isCurrentUser && !isDeleted && (
                 <>
-                  <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl}>
+                  <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl || attachmentType==='sticker'}>
                     <Edit className="mr-2 h-4 w-4" />
                     <span>Edit Pesan</span>
                   </DropdownMenuItem>
@@ -198,7 +205,9 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
           </DropdownMenu>
        </div>
       
-      {MessageContent}
+      <div className="max-w-sm md:max-w-md flex flex-col">
+        {MessageBubble}
+      </div>
     </div>
   );
 }
