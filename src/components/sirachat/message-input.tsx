@@ -15,6 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, X, Edit, Check, Reply } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -78,7 +83,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isEmojiSheetOpen, setIsEmojiSheetOpen] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false);
   const [upload, setUpload] = useState<UploadProgress | null>(null);
   const [isEmojiDataLoading, setIsEmojiDataLoading] = useState(false);
@@ -229,11 +234,13 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
   }
   
   const handleEmojiSelect = (emoji: any) => {
-    onSendMessage(emoji.native, undefined, 'sticker');
+    const currentMessage = form.getValues("message");
+    form.setValue("message", currentMessage + emoji.native);
+    textareaRef.current?.focus();
+    setTimeout(adjustTextareaHeight, 0);
   }
 
-  const openEmojiSheet = async () => {
-    setIsEmojiSheetOpen(true);
+  const openEmojiPicker = async () => {
     if(!emojiData) {
         setIsEmojiDataLoading(true);
         await getEmojiData();
@@ -290,37 +297,35 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
         <form onSubmit={form.handleSubmit(onTextSubmit)} className="flex items-end gap-2 p-2">
           <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
             
-            <Sheet open={isEmojiSheetOpen} onOpenChange={setIsEmojiSheetOpen}>
+            <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" onClick={openEmojiSheet}>
-                        <Smile className="h-6 w-6" />
-                        <span className="sr-only">Pilih Emoji</span>
-                    </Button>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" onClick={openEmojiPicker}>
+                            <Smile className="h-6 w-6" />
+                            <span className="sr-only">Pilih Emoji</span>
+                        </Button>
+                    </PopoverTrigger>
                 </TooltipTrigger>
                 <TooltipContent>
                     <p>Emoji</p>
                 </TooltipContent>
               </Tooltip>
-              <SheetContent side="bottom" className="w-full h-[50vh] p-0 flex flex-col">
-                  <SheetHeader className="p-4 border-b">
-                      <SheetTitle>Pilih Stiker</SheetTitle>
-                  </SheetHeader>
-                  <div className="flex-1">
-                    {isEmojiDataLoading || !emojiData ? (
-                        <div className="w-full h-full flex items-center justify-center p-4">
-                            <Loader2 className="h-8 w-8 animate-spin" />
-                        </div>
-                    ) : (
-                        <Picker 
-                            data={emojiData} 
-                            onEmojiSelect={handleEmojiSelect} 
-                            theme="dark"
-                        />
-                    )}
-                  </div>
-              </SheetContent>
-            </Sheet>
+              <PopoverContent className="w-auto p-0 mb-2 border-0" side="top" align="start">
+                  {isEmojiDataLoading || !emojiData ? (
+                      <div className="w-full h-full flex items-center justify-center p-4">
+                          <Loader2 className="h-8 w-8 animate-spin" />
+                      </div>
+                  ) : (
+                      <Picker 
+                          data={emojiData} 
+                          onEmojiSelect={handleEmojiSelect} 
+                          theme="dark"
+                          onClickOutside={() => setIsEmojiPickerOpen(false)}
+                      />
+                  )}
+              </PopoverContent>
+            </Popover>
 
             <FormField
               control={form.control}
