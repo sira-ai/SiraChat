@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Image from "next/image";
 import { Button } from "../ui/button";
-import { CheckCheck, FileText, Download, Copy, Edit, Trash2, Reply, ImageIcon, File as FileIcon } from "lucide-react";
+import { CheckCheck, FileText, Download, Copy, Edit, Trash2, Reply, ImageIcon, File as FileIcon, MoreHorizontal } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,7 +60,6 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
     } else if (replyTo.attachmentType === 'file') {
       repliedContent = <span className="flex items-center gap-1.5"><FileIcon className="h-4 w-4"/> Dokumen</span>
     }
-
 
     return (
         <div className="relative bg-black/10 dark:bg-black/20 p-2 rounded-md mb-1 ml-1.5 mr-1.5 border-l-2 border-primary">
@@ -158,56 +157,63 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
         isCurrentUser ? "justify-end" : "justify-start"
       )}
     >
-      {!isCurrentUser && senderId && (
-        <Button variant="ghost" className="p-0 h-10 w-10 self-start flex-shrink-0 rounded-full" onClick={() => onUserSelect(senderId)}>
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={avatarUrl} alt={sender}/>
-              <AvatarFallback className="bg-accent text-accent-foreground">
-                {sender.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-        </Button>
-      )}
-      
-       <div className={cn(
-        "absolute -top-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center bg-card border rounded-full shadow-sm z-10",
-        isCurrentUser ? "right-2" : "left-14"
-       )}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-               <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Reply className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align={isCurrentUser ? "end" : "start"} className="w-56">
-              <DropdownMenuItem onClick={() => onReplyMessage(message)} disabled={isDeleted}>
-                <Reply className="mr-2 h-4 w-4" />
-                <span>Balas</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted || attachmentType === 'sticker'}>
-                <Copy className="mr-2 h-4 w-4" />
-                <span>Salin Teks Pesan</span>
-              </DropdownMenuItem>
-              {isCurrentUser && !isDeleted && (
-                <>
-                  <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl || attachmentType==='sticker'}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    <span>Edit Pesan</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteMessage(message.id)}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    <span>Hapus Pesan</span>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-       </div>
+        {/* Interaction Menu */}
+        <div className={cn(
+            "absolute -top-4 z-10 flex items-center rounded-full border bg-card shadow-sm opacity-0 transition-opacity group-hover:opacity-100",
+            isCurrentUser ? "left-0" : "right-0"
+        )}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onReplyMessage(message)} disabled={isDeleted}>
+                <Reply className="h-4 w-4" />
+                <span className="sr-only">Balas</span>
+            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Opsi Lainnya</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align={isCurrentUser ? "start" : "end"}>
+                    <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted || attachmentType === 'sticker'}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        <span>Salin Teks</span>
+                    </DropdownMenuItem>
+                    {isCurrentUser && !isDeleted && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl || attachmentType==='sticker'}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            <span>Edit Pesan</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteMessage(message.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Hapus Pesan</span>
+                        </DropdownMenuItem>
+                    </>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+
+        {!isCurrentUser && senderId && (
+            <Button variant="ghost" className="p-0 h-10 w-10 self-start flex-shrink-0 rounded-full" onClick={() => onUserSelect(senderId)}>
+                <Avatar className="h-10 w-10">
+                <AvatarImage src={avatarUrl} alt={sender}/>
+                <AvatarFallback className="bg-accent text-accent-foreground">
+                    {sender.charAt(0).toUpperCase()}
+                </AvatarFallback>
+                </Avatar>
+            </Button>
+        )}
       
       <div className="max-w-sm md:max-w-md flex flex-col">
         {MessageBubble}
       </div>
+
+       {isCurrentUser && senderId && (
+         <div className="w-10 h-10"/>
+       )}
+
     </div>
   );
 }
