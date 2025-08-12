@@ -14,7 +14,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { SendHorizonal, Smile, Paperclip, Loader2, Image as ImageIcon, FileText as DocumentIcon, X, Edit, Check, Reply } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -57,8 +64,8 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isPickerOpen, setPickerOpen] = useState(false);
-  const [isAttachmentPopoverOpen, setAttachmentPopoverOpen] = useState(false);
+  const [isEmojiSheetOpen, setIsEmojiSheetOpen] = useState(false);
+  const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false);
   const [upload, setUpload] = useState<UploadProgress | null>(null);
   const [emojiData, setEmojiData] = useState(null);
   const hasText = !!form.watch("message");
@@ -154,7 +161,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
     if (!file) return;
 
     setUpload({ progress: 0, fileName: file.name });
-    setAttachmentPopoverOpen(false); // Close popover on selection
+    setIsAttachmentSheetOpen(false); // Close sheet on selection
 
     try {
         const fileType = file.type.startsWith("image/") ? 'image' : 'file';
@@ -269,34 +276,42 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2 p-2">
           <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
             
-            <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
-               <Tooltip>
+            <Sheet open={isEmojiSheetOpen} onOpenChange={setIsEmojiSheetOpen}>
+              <Tooltip>
                 <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
-                            <Smile className="h-6 w-6" />
-                            <span className="sr-only">Pilih Emoji</span>
-                        </Button>
-                    </PopoverTrigger>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+                        <Smile className="h-6 w-6" />
+                        <span className="sr-only">Pilih Emoji</span>
+                    </Button>
+                  </SheetTrigger>
                 </TooltipTrigger>
                 <TooltipContent>
                     <p>Emoji</p>
                 </TooltipContent>
-               </Tooltip>
-              <PopoverContent className="w-auto p-0 mb-2 border-0" side="top" align="start">
-                  {emojiData ? (
-                      <Picker 
-                          data={emojiData} 
-                          onEmojiSelect={handleEmojiSelect} 
-                          theme="dark"
-                      />
-                  ) : (
-                      <div className="w-full h-full flex items-center justify-center p-4">
-                          <Loader2 className="h-8 w-8 animate-spin" />
-                      </div>
-                  )}
-              </PopoverContent>
-            </Popover>
+              </Tooltip>
+              <SheetContent side="bottom" className="w-full h-[50vh] p-0 flex flex-col">
+                  <SheetHeader className="p-4 border-b">
+                      <SheetTitle>Pilih Emoji</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex-1">
+                    {emojiData ? (
+                        <Picker 
+                            data={emojiData} 
+                            onEmojiSelect={(emoji: any) => {
+                                handleEmojiSelect(emoji);
+                                setIsEmojiSheetOpen(false);
+                            }} 
+                            theme="dark"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center p-4">
+                            <Loader2 className="h-8 w-8 animate-spin" />
+                        </div>
+                    )}
+                  </div>
+              </SheetContent>
+            </Sheet>
 
             <FormField
               control={form.control}
@@ -321,32 +336,39 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
             />
             
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+            
+            <Sheet open={isAttachmentSheetOpen} onOpenChange={setIsAttachmentSheetOpen}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" disabled={!!upload || isEditing}>
+                      {upload ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
+                      <span className="sr-only">Lampirkan File</span>
+                    </Button>
+                  </SheetTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Lampiran</p>
+                </TooltipContent>
+              </Tooltip>
+              <SheetContent side="bottom" className="w-full sm:max-w-lg mx-auto rounded-t-lg">
+                <SheetHeader>
+                    <SheetTitle>Kirim Lampiran</SheetTitle>
+                    <SheetDescription>Pilih jenis file yang ingin Anda kirim.</SheetDescription>
+                </SheetHeader>
+                <div className="grid grid-cols-2 gap-4 py-4">
+                    <Button variant="outline" className="flex flex-col h-28 w-full" onClick={() => {fileInputRef.current?.setAttribute('accept', 'image/*'); fileInputRef.current?.click();}} disabled={!!upload}>
+                        <ImageIcon className="h-10 w-10 mb-2" />
+                        <span className="text-base">Gambar</span>
+                    </Button>
+                    <Button variant="outline" className="flex flex-col h-28 w-full" onClick={() => {fileInputRef.current?.removeAttribute('accept'); fileInputRef.current?.click();}} disabled={!!upload}>
+                        <DocumentIcon className="h-10 w-10 mb-2" />
+                        <span className="text-base">Dokumen</span>
+                    </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
 
-            <Popover open={isAttachmentPopoverOpen} onOpenChange={setAttachmentPopoverOpen}>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" disabled={!!upload || isEditing}>
-                                {upload ? <Loader2 className="h-6 w-6 animate-spin" /> : <Paperclip className="h-6 w-6" />}
-                                <span className="sr-only">Lampirkan File</span>
-                            </Button>
-                        </PopoverTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Lampiran</p>
-                    </TooltipContent>
-                </Tooltip>
-              <PopoverContent align="end" side="top" className="w-auto p-2 mb-2 grid grid-cols-2 gap-2">
-                  <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => {fileInputRef.current?.setAttribute('accept', 'image/*'); fileInputRef.current?.click();}} disabled={!!upload}>
-                      <ImageIcon className="h-8 w-8 mb-1" />
-                      <span className="text-xs">Gambar</span>
-                  </Button>
-                  <Button variant="outline" className="flex flex-col h-20 w-20" onClick={() => {fileInputRef.current?.removeAttribute('accept'); fileInputRef.current?.click();}} disabled={!!upload}>
-                      <DocumentIcon className="h-8 w-8 mb-1" />
-                      <span className="text-xs">Dokumen</span>
-                  </Button>
-              </PopoverContent>
-            </Popover>
           </div>
 
           <Button type="submit" size="icon" disabled={(!hasText && !upload) || form.formState.isSubmitting} className="h-12 w-12 rounded-full flex-shrink-0">
