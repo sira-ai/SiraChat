@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import UserProfileDialog from "@/components/sirachat/user-profile-dialog";
-import { doc, onSnapshot, updateDoc, writeBatch, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, onSnapshot, writeBatch, collection, query, where, getDocs } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { ref, deleteObject } from "firebase/storage";
