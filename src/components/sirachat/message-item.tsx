@@ -147,7 +147,7 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
   return (
     <div
       className={cn(
-        "flex items-end gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500",
+        "group relative flex items-end gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500",
         isCurrentUser ? "justify-end" : "justify-start"
       )}
     >
@@ -162,36 +162,43 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
         </Button>
       )}
       
-       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <div className="cursor-pointer">
-            {MessageContent}
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align={isCurrentUser ? "end" : "start"} className="w-56">
-          <DropdownMenuItem onClick={() => onReplyMessage(message)} disabled={isDeleted}>
-            <Reply className="mr-2 h-4 w-4" />
-            <span>Balas</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted}>
-            <Copy className="mr-2 h-4 w-4" />
-            <span>Salin Teks Pesan</span>
-          </DropdownMenuItem>
-          {isCurrentUser && !isDeleted && (
-            <>
-              <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl}>
-                <Edit className="mr-2 h-4 w-4" />
-                <span>Edit Pesan</span>
+       <div className={cn(
+        "absolute -top-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center bg-card border rounded-full shadow-sm",
+        isCurrentUser ? "right-0" : "left-12"
+       )}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+               <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <Reply className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={isCurrentUser ? "end" : "start"} className="w-56">
+              <DropdownMenuItem onClick={() => onReplyMessage(message)} disabled={isDeleted}>
+                <Reply className="mr-2 h-4 w-4" />
+                <span>Balas</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteMessage(message.id)}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                <span>Hapus Pesan</span>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted}>
+                <Copy className="mr-2 h-4 w-4" />
+                <span>Salin Teks Pesan</span>
               </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              {isCurrentUser && !isDeleted && (
+                <>
+                  <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    <span>Edit Pesan</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteMessage(message.id)}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <span>Hapus Pesan</span>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+       </div>
+      
+      {MessageContent}
     </div>
   );
 }
