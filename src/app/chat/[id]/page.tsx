@@ -24,7 +24,6 @@ export default function PrivateChat() {
     return null; // Or a loading skeleton
   }
 
-  // The 'isGlobal' prop is implicitly false here
   return (
     <ChatPage
       chatId={chatId}

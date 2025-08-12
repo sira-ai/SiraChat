@@ -10,7 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import UserProfileDialog from "@/components/sirachat/user-profile-dialog";
-import { doc, onSnapshot, updateDoc, serverTimestamp, writeBatch, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, serverTimestamp, writeBatch, collection, query, where, getDocs } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import { ref, deleteObject } from "firebase/storage";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -49,7 +49,14 @@ export default function ChatLayout({
     let userData: UserProfile | null = null;
 
     if (storedUser) {
-      userData = JSON.parse(storedUser);
+      try {
+        userData = JSON.parse(storedUser);
+      } catch (error) {
+        console.error("Failed to parse user from localStorage", error);
+        localStorage.removeItem('sira-chat-user');
+        router.push('/');
+        return;
+      }
       
       const userRef = doc(db, 'users', userData!.uid);
       unsubscribe = onSnapshot(userRef, (doc) => {
@@ -58,7 +65,6 @@ export default function ChatLayout({
           setCurrentUser(updatedUser);
           localStorage.setItem('sira-chat-user', JSON.stringify(updatedUser));
         } else {
-            // User document has been deleted, log out
             console.log("User document not found. Logging out.");
             handleLogout(false);
         }
@@ -68,15 +74,17 @@ export default function ChatLayout({
       });
       
       updateUserPresence(userData, 'online');
+      setIsLoading(false);
 
     } else {
       router.push('/');
+      setIsLoading(false);
     }
-    setIsLoading(false);
 
     const handleBeforeUnload = () => {
         if (userData) {
-            updateUserPresence(userData, 'offline');
+            // This is a sync operation, but Firebase SDK handles it in the background
+            navigator.sendBeacon ? navigator.sendBeacon('/api/leave', JSON.stringify({uid: userData.uid})) : updateUserPresence(userData, 'offline');
         }
     };
 
@@ -86,7 +94,10 @@ export default function ChatLayout({
         if (unsubscribe) {
             unsubscribe();
         }
-        handleBeforeUnload(); // Set offline when component unmounts
+        // Set offline when component unmounts (e.g., navigating away)
+        if (currentUser) {
+            updateUserPresence(currentUser, 'offline');
+        }
         window.removeEventListener('beforeunload', handleBeforeUnload);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,7 +105,9 @@ export default function ChatLayout({
 
 
   const handleLogout = (showToast = true) => {
-    updateUserPresence(currentUser, 'offline');
+    if(currentUser) {
+       updateUserPresence(currentUser, 'offline');
+    }
     localStorage.removeItem('sira-chat-user');
     setCurrentUser(null);
     if(showToast) {
@@ -116,24 +129,23 @@ export default function ChatLayout({
         const chatsSnapshot = await getDocs(chatsQuery);
 
         for (const chatDoc of chatsSnapshot.docs) {
-            // Delete messages subcollection
             const messagesQuery = query(collection(db, `chats/${chatDoc.id}/messages`));
             const messagesSnapshot = await getDocs(messagesQuery);
             messagesSnapshot.forEach(messageDoc => {
                 batch.delete(messageDoc.ref);
             });
-            // Delete the chat doc itself
             batch.delete(chatDoc.ref);
         }
 
         // 2. Delete user's avatar from Storage
         if (currentUser.avatarUrl && currentUser.avatarUrl.includes('firebasestorage')) {
-            const avatarRef = ref(storage, `avatars/${currentUser.uid}/avatar.png`);
             try {
+                const avatarRef = ref(storage, `avatars/${currentUser.uid}/avatar.png`);
                 await deleteObject(avatarRef);
             } catch (storageError: any) {
                 if (storageError.code !== 'storage/object-not-found') {
-                    throw storageError; // Re-throw if it's not a "not found" error
+                    // Log but don't block account deletion if avatar fails
+                    console.error("Could not delete avatar:", storageError);
                 }
             }
         }
@@ -142,12 +154,10 @@ export default function ChatLayout({
         const userRef = doc(db, 'users', currentUser.uid);
         batch.delete(userRef);
 
-        // Commit all batched writes
         await batch.commit();
 
         toast({ title: "Akun berhasil dihapus", description: "Kami harap dapat bertemu Anda lagi." });
         
-        // Finally, log out
         handleLogout(false);
 
     } catch (error) {
@@ -158,6 +168,10 @@ export default function ChatLayout({
 
 
   const handleChatSelect = (chatId: string) => {
+    if(isMobile){
+       const mainContent = document.querySelector('main');
+       if(mainContent) mainContent.scrollTop = 0;
+    }
     router.push(`/chat/${chatId}`);
   };
 
@@ -196,26 +210,28 @@ export default function ChatLayout({
   return (
     <>
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-background">
-        <Sidebar className="w-full max-w-xs border-r hidden md:flex">
-            <SidebarContent className="p-0">
-                <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
-            </SidebarContent>
-            <SidebarFooter className="p-2">
-                <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-card transition-colors cursor-pointer" onClick={openMyProfile}>
-                    <Avatar className="h-10 w-10">
-                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
-                        <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-bold truncate">{currentUser.username}</p>
+      <div className="flex h-screen w-screen bg-background overflow-hidden">
+        {!isMobile && (
+            <Sidebar className="w-full max-w-xs border-r flex">
+                <SidebarContent className="p-0">
+                    <ChatListContent currentUser={currentUser} onChatSelect={handleChatSelect}/>
+                </SidebarContent>
+                <SidebarFooter className="p-2">
+                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-card transition-colors cursor-pointer" onClick={openMyProfile}>
+                        <Avatar className="h-10 w-10">
+                            <AvatarImage src={currentUser.avatarUrl} alt={currentUser.username} />
+                            <AvatarFallback>{currentUser.username.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-bold truncate">{currentUser.username}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
+                            <LogOut className="h-5 w-5" />
+                        </Button>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
-                        <LogOut className="h-5 w-5" />
-                    </Button>
-                </div>
-            </SidebarFooter>
-        </Sidebar>
+                </SidebarFooter>
+            </Sidebar>
+        )}
 
         <main className="flex-1 h-screen">
           {children}
@@ -227,8 +243,8 @@ export default function ChatLayout({
         isMyProfile={true}
         open={isProfileDialogOpen}
         onOpenChange={setIsProfileDialogOpen}
-        onLogout={handleLogout}
-        onDeleteAccount={handleDeleteAccount}
+        onLogout={() => { setIsProfileDialogOpen(false); handleLogout();}}
+        onDeleteAccount={() => { setIsProfileDialogOpen(false); handleDeleteAccount();}}
     />
     </>
   );

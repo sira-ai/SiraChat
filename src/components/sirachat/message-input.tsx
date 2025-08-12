@@ -43,7 +43,7 @@ const formSchema = z.object({
 type MessageInputProps = {
   onSendMessage: (message: string, attachmentUrl?: string, attachmentType?: 'image' | 'file' | 'sticker', fileName?: string) => void;
   currentUser: UserProfile | null;
-  chatId: string;
+  chatId?: string;
   editingMessage: Message | null;
   onCancelEdit: () => void;
   replyingToMessage: Message | null;
@@ -234,10 +234,7 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
   }
   
   const handleEmojiSelect = (emoji: any) => {
-    const currentMessage = form.getValues("message");
-    form.setValue("message", currentMessage + emoji.native);
-    textareaRef.current?.focus();
-    setTimeout(adjustTextareaHeight, 0);
+    onSendMessage(emoji.native, undefined, 'sticker');
   }
 
   const openEmojiPicker = async () => {
@@ -297,35 +294,42 @@ export default function MessageInput({ onSendMessage, currentUser, chatId, editi
         <form onSubmit={form.handleSubmit(onTextSubmit)} className="flex items-end gap-2 p-2">
           <div className="flex-1 flex items-end bg-card rounded-full p-1 pl-3 transition-all duration-300">
             
-            <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+            <Sheet open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" onClick={openEmojiPicker}>
-                            <Smile className="h-6 w-6" />
-                            <span className="sr-only">Pilih Emoji</span>
-                        </Button>
-                    </PopoverTrigger>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 text-muted-foreground hover:text-foreground" onClick={openEmojiPicker}>
+                        <Smile className="h-6 w-6" />
+                        <span className="sr-only">Pilih Stiker</span>
+                    </Button>
+                  </SheetTrigger>
                 </TooltipTrigger>
                 <TooltipContent>
-                    <p>Emoji</p>
+                    <p>Stiker</p>
                 </TooltipContent>
               </Tooltip>
-              <PopoverContent className="w-auto p-0 mb-2 border-0" side="top" align="start">
-                  {isEmojiDataLoading || !emojiData ? (
-                      <div className="w-full h-full flex items-center justify-center p-4">
-                          <Loader2 className="h-8 w-8 animate-spin" />
-                      </div>
-                  ) : (
-                      <Picker 
-                          data={emojiData} 
-                          onEmojiSelect={handleEmojiSelect} 
-                          theme="dark"
-                          onClickOutside={() => setIsEmojiPickerOpen(false)}
-                      />
-                  )}
-              </PopoverContent>
-            </Popover>
+              <SheetContent side="bottom" className="w-full sm:max-w-lg mx-auto rounded-t-lg p-0 h-[45vh]">
+                <SheetHeader className="p-4 border-b">
+                    <SheetTitle>Pilih Stiker</SheetTitle>
+                </SheetHeader>
+                <div className="h-[calc(45vh-65px)] overflow-y-auto">
+                    {isEmojiDataLoading || !emojiData ? (
+                        <div className="w-full h-full flex items-center justify-center p-4">
+                            <Loader2 className="h-8 w-8 animate-spin" />
+                        </div>
+                    ) : (
+                        <Picker 
+                            data={emojiData} 
+                            onEmojiSelect={handleEmojiSelect} 
+                            theme="dark"
+                            previewPosition="none"
+                            searchPosition="none"
+                            perLine={8}
+                        />
+                    )}
+                </div>
+              </SheetContent>
+            </Sheet>
 
             <FormField
               control={form.control}
