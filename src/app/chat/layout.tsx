@@ -10,9 +10,11 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import UserProfileDialog from "@/components/sirachat/user-profile-dialog";
-import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, onSnapshot, updateDoc, serverTimestamp, writeBatch, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { db, storage } from "@/lib/firebase";
+import { ref, deleteObject } from "firebase/storage";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ChatLayout({
   children,
@@ -23,6 +25,7 @@ export default function ChatLayout({
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const isMobile = useIsMobile();
+  const { toast } = useToast();
 
   // Dialog state
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -54,6 +57,10 @@ export default function ChatLayout({
           const updatedUser = doc.data() as UserProfile;
           setCurrentUser(updatedUser);
           localStorage.setItem('sira-chat-user', JSON.stringify(updatedUser));
+        } else {
+            // User document has been deleted, log out
+            console.log("User document not found. Logging out.");
+            handleLogout(false);
         }
       }, (error) => {
         console.error("Failed to listen to user updates:", error);
@@ -82,15 +89,73 @@ export default function ChatLayout({
         handleBeforeUnload(); // Set offline when component unmounts
         window.removeEventListener('beforeunload', handleBeforeUnload);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, updateUserPresence]);
 
 
-  const handleLogout = () => {
+  const handleLogout = (showToast = true) => {
     updateUserPresence(currentUser, 'offline');
     localStorage.removeItem('sira-chat-user');
     setCurrentUser(null);
+    if(showToast) {
+        toast({ title: "Anda telah keluar" });
+    }
     router.push('/');
   }
+  
+  const handleDeleteAccount = async () => {
+    if (!currentUser) return;
+
+    try {
+        await updateUserPresence(currentUser, 'offline');
+
+        const batch = writeBatch(db);
+
+        // 1. Find and delete all chats the user is a member of
+        const chatsQuery = query(collection(db, "chats"), where("members", "array-contains", currentUser.uid));
+        const chatsSnapshot = await getDocs(chatsQuery);
+
+        for (const chatDoc of chatsSnapshot.docs) {
+            // Delete messages subcollection
+            const messagesQuery = query(collection(db, `chats/${chatDoc.id}/messages`));
+            const messagesSnapshot = await getDocs(messagesQuery);
+            messagesSnapshot.forEach(messageDoc => {
+                batch.delete(messageDoc.ref);
+            });
+            // Delete the chat doc itself
+            batch.delete(chatDoc.ref);
+        }
+
+        // 2. Delete user's avatar from Storage
+        if (currentUser.avatarUrl && currentUser.avatarUrl.includes('firebasestorage')) {
+            const avatarRef = ref(storage, `avatars/${currentUser.uid}/avatar.png`);
+            try {
+                await deleteObject(avatarRef);
+            } catch (storageError: any) {
+                if (storageError.code !== 'storage/object-not-found') {
+                    throw storageError; // Re-throw if it's not a "not found" error
+                }
+            }
+        }
+        
+        // 3. Delete the user document
+        const userRef = doc(db, 'users', currentUser.uid);
+        batch.delete(userRef);
+
+        // Commit all batched writes
+        await batch.commit();
+
+        toast({ title: "Akun berhasil dihapus", description: "Kami harap dapat bertemu Anda lagi." });
+        
+        // Finally, log out
+        handleLogout(false);
+
+    } catch (error) {
+        console.error("Error deleting account:", error);
+        toast({ title: "Gagal Menghapus Akun", description: "Terjadi kesalahan yang tidak terduga.", variant: "destructive" });
+    }
+  };
+
 
   const handleChatSelect = (chatId: string) => {
     router.push(`/chat/${chatId}`);
@@ -162,6 +227,8 @@ export default function ChatLayout({
         isMyProfile={true}
         open={isProfileDialogOpen}
         onOpenChange={setIsProfileDialogOpen}
+        onLogout={handleLogout}
+        onDeleteAccount={handleDeleteAccount}
     />
     </>
   );

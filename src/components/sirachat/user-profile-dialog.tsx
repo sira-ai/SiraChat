@@ -1,4 +1,3 @@
-
 "use client";
 
 import { UserProfile } from "@/types";
@@ -7,10 +6,23 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AtSign, CalendarDays, Edit, Loader2, Save, User as UserIcon, X, Crop } from "lucide-react";
+import { AtSign, CalendarDays, Edit, Loader2, Save, User as UserIcon, X, Crop, LogOut, Trash2 } from "lucide-react";
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useState, useRef, useEffect } from "react";
@@ -21,6 +33,7 @@ import { db, storage } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Label } from "../ui/label";
+import { Separator } from "../ui/separator";
 
 import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -30,6 +43,8 @@ type UserProfileDialogProps = {
   isMyProfile: boolean;
   open?: boolean;
   onOpenChange: (open: boolean) => void;
+  onLogout: () => void;
+  onDeleteAccount: () => Promise<void>;
 };
 
 // Helper to center the crop
@@ -95,9 +110,10 @@ function updateLocalUser(updatedData: Partial<UserProfile>) {
 }
 
 
-export default function UserProfileDialog({ user, isMyProfile, open = false, onOpenChange }: UserProfileDialogProps) {
+export default function UserProfileDialog({ user, isMyProfile, open = false, onOpenChange, onLogout, onDeleteAccount }: UserProfileDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [username, setUsername] = useState("");
   
   // Cropping state
@@ -120,6 +136,7 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
   const resetState = () => {
     setIsEditing(false);
     setIsLoading(false);
+    setIsDeleting(false);
     setImgSrc('');
     setCrop(undefined);
     setCompletedCrop(undefined);
@@ -208,6 +225,12 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
         setIsLoading(false);
     }
   }
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true);
+    await onDeleteAccount();
+    // No need to set isDeleting false as component will unmount
+  }
   
   const getJoinDate = () => {
     if (!user.createdAt) return 'Tidak diketahui';
@@ -262,7 +285,7 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
                 <DialogHeader className="items-center text-center -mb-2 relative">
                     {isMyProfile && !imgSrc && (
                         <div className="absolute top-0 right-0">
-                            <Button variant="ghost" size="icon" onClick={handleEditToggle} disabled={isLoading}>
+                            <Button variant="ghost" size="icon" onClick={handleEditToggle} disabled={isLoading || isDeleting}>
                                 {isEditing ? <X className="h-5 w-5" /> : <Edit className="h-5 w-5" />}
                             </Button>
                         </div>
@@ -331,6 +354,40 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
                             </div>
                         </div>
                     </div>
+
+                    {isMyProfile && !isEditing && (
+                        <div className="space-y-2">
+                             <Button variant="outline" className="w-full" onClick={onLogout}>
+                                <LogOut className="mr-2 h-4 w-4" /> Keluar
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" className="w-full">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Hapus Akun
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Tindakan ini tidak dapat dibatalkan. Ini akan secara permanen menghapus akun Anda, semua obrolan, dan pesan Anda dari server kami.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
+                                        <AlertDialogAction 
+                                            onClick={handleDeleteConfirm} 
+                                            disabled={isDeleting}
+                                            className="bg-destructive hover:bg-destructive/90"
+                                        >
+                                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                            Ya, Hapus Akun Saya
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    )}
                 </div>
                 {isEditing && (
                     <DialogFooter>
