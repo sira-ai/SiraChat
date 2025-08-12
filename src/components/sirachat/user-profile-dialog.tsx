@@ -363,7 +363,7 @@ export default function UserProfileDialog({ user, isMyProfile, open = false, onO
                     </DialogFooter>
                 )}
                  {isMyProfile && !isEditing && (
-                    <DialogFooter className="flex-col gap-2">
+                    <DialogFooter className="flex-col gap-2 sm:flex-col sm:gap-2">
                         <Button variant="outline" className="w-full" onClick={onLogout}>
                             <LogOut className="mr-2 h-4 w-4" /> Keluar
                         </Button>
