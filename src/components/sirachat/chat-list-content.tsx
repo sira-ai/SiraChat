@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { formatDistanceToNowStrict } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import UserProfileDialog from "./user-profile-dialog";
 import { usePathname } from "next/navigation";
@@ -37,7 +37,7 @@ function formatTimestamp(timestamp: any) {
     if (!timestamp) return '';
     try {
         const date = timestamp.toDate();
-        return formatDistanceToNowStrict(date, { addSuffix: false, locale: id });
+        return formatDistanceToNow(date, { addSuffix: true, locale: id });
     } catch(e) {
         return '';
     }
