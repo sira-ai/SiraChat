@@ -153,67 +153,61 @@ export default function MessageItem({ message, isCurrentUser, onUserSelect, part
   return (
     <div
       className={cn(
-        "group relative flex items-end gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500",
-        isCurrentUser ? "justify-end" : "justify-start"
+        "group relative flex items-start gap-2.5 animate-in fade-in-25 slide-in-from-bottom-4 duration-500",
+        isCurrentUser ? "justify-end flex-row-reverse" : "justify-start flex-row"
       )}
     >
-        {/* Interaction Menu */}
-        <div className={cn(
-            "absolute -top-4 z-10 flex items-center rounded-full border bg-card shadow-sm opacity-0 transition-opacity group-hover:opacity-100",
-            isCurrentUser ? "left-0" : "right-0"
-        )}>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onReplyMessage(message)} disabled={isDeleted}>
-                <Reply className="h-4 w-4" />
-                <span className="sr-only">Balas</span>
-            </Button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Opsi Lainnya</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align={isCurrentUser ? "start" : "end"}>
-                    <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted || attachmentType === 'sticker'}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        <span>Salin Teks</span>
-                    </DropdownMenuItem>
-                    {isCurrentUser && !isDeleted && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl || attachmentType==='sticker'}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            <span>Edit Pesan</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteMessage(message.id)}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Hapus Pesan</span>
-                        </DropdownMenuItem>
-                    </>
-                    )}
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
-
-        {!isCurrentUser && senderId && (
-            <Button variant="ghost" className="p-0 h-10 w-10 self-start flex-shrink-0 rounded-full" onClick={() => onUserSelect(senderId)}>
-                <Avatar className="h-10 w-10">
-                <AvatarImage src={avatarUrl} alt={sender}/>
-                <AvatarFallback className="bg-accent text-accent-foreground">
-                    {sender.charAt(0).toUpperCase()}
-                </AvatarFallback>
-                </Avatar>
-            </Button>
-        )}
+      {!isCurrentUser && senderId && (
+        <Button variant="ghost" className="p-0 h-10 w-10 self-start flex-shrink-0 rounded-full" onClick={() => onUserSelect(senderId)}>
+            <Avatar className="h-10 w-10">
+            <AvatarImage src={avatarUrl} alt={sender}/>
+            <AvatarFallback className="bg-accent text-accent-foreground">
+                {sender.charAt(0).toUpperCase()}
+            </AvatarFallback>
+            </Avatar>
+        </Button>
+      )}
       
       <div className="max-w-sm md:max-w-md flex flex-col">
         {MessageBubble}
       </div>
 
-       {isCurrentUser && senderId && (
-         <div className="w-10 h-10"/>
-       )}
-
+       <div className={cn(
+          "flex-shrink-0 self-center opacity-0 transition-opacity group-hover:opacity-100",
+          isCurrentUser ? "mr-1" : "ml-1"
+        )}>
+           <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Opsi Lainnya</span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={isCurrentUser ? "start" : "end"}>
+                <DropdownMenuItem onClick={() => onReplyMessage(message)} disabled={isDeleted}>
+                    <Reply className="mr-2 h-4 w-4" />
+                    <span>Balas</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleCopy} disabled={!text || isDeleted || attachmentType === 'sticker'}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    <span>Salin Teks</span>
+                </DropdownMenuItem>
+                {isCurrentUser && !isDeleted && (
+                <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onEditMessage(message)} disabled={!!attachmentUrl || attachmentType==='sticker'}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>Edit</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteMessage(message.id)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Hapus</span>
+                    </DropdownMenuItem>
+                </>
+                )}
+            </DropdownMenuContent>
+        </DropdownMenu>
+       </div>
     </div>
   );
 }
