@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import UserProfileDialog from "@/components/sirachat/user-profile-dialog";
 import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function ChatLayout({
   children,
@@ -21,6 +22,7 @@ export default function ChatLayout({
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   // Dialog state
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);

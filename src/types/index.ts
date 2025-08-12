@@ -27,7 +27,6 @@ export type UserProfile = {
     status?: 'online' | 'offline';
     lastSeen?: Timestamp | Date | string;
     createdAt?: Date | string;
-    role?: 'user' | 'admin';
 }
 
 export type TypingStatus = {

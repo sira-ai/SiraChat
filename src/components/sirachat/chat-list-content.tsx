@@ -63,6 +63,8 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
       const chatsData: ChatWithDetails[] = [];
       let totalUnread = 0;
       
+      const userPromises = [];
+
       for (const chatDoc of querySnapshot.docs) {
           const chat = { id: chatDoc.id, ...chatDoc.data() } as Chat;
           const partnerId = chat.members.find(uid => uid !== currentUser.uid);
@@ -72,19 +74,20 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
           if (partnerId) {
              const partnerProfile = chat.memberProfiles[partnerId];
               if (partnerProfile) {
-                 chatsData.push({
-                    ...chat,
-                    unreadCount,
-                    partner: {
-                        uid: partnerId,
-                        username: partnerProfile.username,
-                        avatarUrl: partnerProfile.avatarUrl,
-                        email: ''
-                    }
-                });
+                userPromises.push(getDoc(doc(db, 'users', partnerId)).then(userDoc => {
+                     if (userDoc.exists()) {
+                         chatsData.push({
+                            ...chat,
+                            unreadCount,
+                            partner: userDoc.data() as UserProfile,
+                        });
+                     }
+                 }));
               }
           }
       }
+
+      await Promise.all(userPromises);
       
       if (totalUnread > 0) {
         document.title = `(${totalUnread}) SiraChat`;
@@ -241,8 +244,7 @@ export default function ChatListContent({ currentUser, onChatSelect }: ChatListC
                     {chats.length > 0 ? chats.map((chat) => (
                       <div key={chat.id} onClick={() => onChatSelect(chat.id)} className="cursor-pointer">
                         <ChatListItem
-                            avatar={chat.partner.avatarUrl || `https://placehold.co/100x100.png`}
-                            name={chat.partner.username}
+                            partner={chat.partner}
                             lastMessage={chat.lastMessage || `Mulai percakapan...`}
                             time={formatTimestamp(chat.lastMessageTimestamp)}
                             unreadCount={chat.unreadCount}

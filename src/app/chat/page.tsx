@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { UserProfile } from "@/types";
 import { useRouter } from "next/navigation";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export default function ChatsRootPage() {
@@ -25,18 +25,14 @@ export default function ChatsRootPage() {
             if (!isMobile) {
                 const chatsQuery = query(
                   collection(db, "chats"),
-                  where("members", "array-contains", user.uid)
+                  where("members", "array-contains", user.uid),
+                  orderBy("lastMessageTimestamp", "desc"),
+                  limit(1)
                 );
                 
                 getDocs(chatsQuery).then((querySnapshot) => {
                     if (!querySnapshot.empty) {
-                        const chats = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        chats.sort((a: any, b: any) => {
-                            const timeA = a.lastMessageTimestamp?.toDate?.().getTime() || 0;
-                            const timeB = b.lastMessageTimestamp?.toDate?.().getTime() || 0;
-                            return timeB - timeA;
-                        });
-                        const mostRecentChat = chats[0];
+                        const mostRecentChat = querySnapshot.docs[0];
                         if (mostRecentChat) {
                            router.replace(`/chat/${mostRecentChat.id}`);
                         }
